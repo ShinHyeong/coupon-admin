@@ -22,6 +22,12 @@ spring:
       path: /h2-console
 file:
   upload-dir: /Users/psh/upload-folder
+logging:
+  level:
+    com.coupon.system: INFO
+  file:
+    path: /Users/psh/logs
+    name: logs/coupon-admin.log
 ---
 spring:
   config:
@@ -34,7 +40,7 @@ spring:
   datasource:
     url: "jdbc:mysql://localhost/coupon_admin"
     username: "root"
-    password: "1234"
+    password: "Abcd1234!"
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
