@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>쿠폰 관리자 시스템</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+        }
+        header {
+            background-color: #007bff;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        h2 {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 0.5rem;
+        }
+
+        /* 파일 업로드 폼 스타일 */
+        #upload-form {
+            display: flex;
+            gap: 10px;
+            padding: 1rem;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        #upload-form input[type="file"] {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+        .btn {
+            padding: 0.6rem 1rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .btn:hover { background-color: #0056b3; }
+        .btn.download { background-color: #28a745; }
+        .btn.download:hover { background-color: #218838; }
+
+        /* 메시지 영역 스타일 */
+        #message-area {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 4px;
+            display: none; /* 평소엔 숨김 */
+        }
+        #message-area.success {
+            background-color: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        #message-area.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+
+        /* 작업 내역 테이블 스타일 */
+        #jobs-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2rem;
+        }
+        #jobs-table th, #jobs-table td {
+            border: 1px solid #ddd;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        #jobs-table th {
+            background-color: #f2f2f2;
+        }
+        #jobs-table tr:nth-child(even) { background-color: #f9f9f9; }
+        #jobs-table td.status-processing { color: #007bff; font-weight: bold; }
+        #jobs-table td.status-completed { color: green; font-weight: bold; }
+        #jobs-table td.status-failed { color: red; font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>쿠폰 관리자 시스템 (Admin)</h1>
+</header>
+
+<div class="container">
+    <h2>쿠폰 대량 발급</h2>
+    <form id="upload-form">
+        <input type="file" id="coupon-file" accept=".csv" required>
+        <button type="submit" class="btn">파일 업로드</button>
+    </form>
+    <div id="message-area"></div> <h2>발급 작업 내역</h2>
+    <table id="jobs-table">
+        <thead>
+        <tr>
+            <th>Job ID</th>
+            <th>원본 파일명</th>
+            <th>상태</th>
+            <th>총 건수</th>
+            <th>성공</th>
+            <th>실패</th>
+            <th>요청일</th>
+            <th>다운로드</th>
+        </tr>
+        </thead>
+        <tbody id="jobs-table-body">
+        <tr>
+            <td colspan="8" style="text-align: center;">데이터를 불러오는 중...</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const API_BASE_URL = 'http://localhost:8080';
+
+    // --- DOM 요소 ---
+    const uploadForm = document.getElementById('upload-form');
+    const couponFile = document.getElementById('coupon-file');
+    const messageArea = document.getElementById('message-area');
+    const jobsTableBody = document.getElementById('jobs-table-body');
+
+    /**
+     * (기능 1) 페이지 로드 시, 작업 목록을 불러옵니다.
+     */
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchJobs();
+    });
+
+    /**
+     * (기능 2) 파일 업로드 폼 제출 이벤트
+     */
+    uploadForm.addEventListener('submit', async (event) => {
+        event.preventDefault(); // 폼 기본 제출 방지
+
+        if (couponFile.files.length === 0) {
+            showMessage('파일을 선택해주세요.', 'error');
+            return;
+        }
+
+        const file = couponFile.files[0];
+        const formData = new FormData();
+        formData.append('file', file); // 'file'은 컨트롤러의 @RequestParam 이름
+
+        try {
+            // (필수) 세션 유지를 위해 credentials: 'include'
+            const response = await fetch(`${API_BASE_URL}/coupons/upload`, {
+                method: 'POST',
+                credentials: 'include',
+                body: formData, // JSON.stringify가 아님!
+            });
+
+            if (response.ok) {
+                const job = await response.json();
+                showMessage(`[Job ID: ${job.id}] 파일 업로드 성공. 발급을 시작합니다.`, 'success');
+                fetchJobs(); // 업로드 성공 시, 목록 새로고침
+                uploadForm.reset(); // 폼 초기화
+            } else {
+                let errorMessage = '알 수 없는 오류가 발생했습니다.';
+                try {
+                    const error = await response.json();
+
+                    // (수정) error.message가 있으면 쓰고, 없으면 error.error라도 씀
+                    errorMessage = error.message || error.error || '서버 응답 오류';
+
+                } catch (e) {
+                    errorMessage = '서버 응답을 파싱할 수 없습니다 (아마도 HTML 오류).';
+                }
+                showMessage(`업로드 실패: ${errorMessage}`, 'error');
+            }
+
+        } catch (error) {
+            showMessage(`서버 오류: ${error.message}`, 'error');
+        }
+    });
+
+    /**
+     * (기능 3) 작업 목록(Job List)을 서버에서 가져와 테이블에 표시
+     */
+    async function fetchJobs() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/coupons/jobs`, {
+                method: 'GET',
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                // 세션 만료 등으로 401/403 에러 시, 로그인 페이지로
+                if (response.status === 401 || response.status === 403) {
+                    window.location.href = '/index.html';
+                }
+                throw new Error('작업 목록을 불러오는데 실패했습니다.');
+            }
+
+            const jobs = await response.json();
+            jobsTableBody.innerHTML = ''; // 테이블 비우기
+
+            if (jobs.length === 0) {
+                jobsTableBody.innerHTML = '<tr><td colspan="8" style="text-align: center;">작업 내역이 없습니다.</td></tr>';
+                return;
+            }
+
+            jobs.forEach(job => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${job.id}</td>
+                    <td>${job.originalFileName}</td>
+                    <td class="status-${job.jobStatus.toLowerCase()}">${job.jobStatus}</td>
+                    <td>${job.totalCount}</td>
+                    <td>${job.successCount}</td>
+                    <td>${job.failCount}</td>
+                    <td>${new Date(job.createdAt).toLocaleString()}</td>
+                    <td>
+                        <button class="btn download download-btn" data-job-id="${job.id}">
+                            원본 다운로드
+                        </button>
+                    </td>
+                `;
+                jobsTableBody.appendChild(tr);
+            });
+
+        } catch (error) {
+            jobsTableBody.innerHTML = `<tr><td colspan="8" style="text-align: center;">${error.message}</td></tr>`;
+        }
+    }
+
+    /**
+     * (기능 4) 다운로드 버튼 클릭 이벤트 (이벤트 위임)
+     */
+    jobsTableBody.addEventListener('click', (event) => {
+        if (event.target.classList.contains('download-btn')) {
+            const jobId = event.target.dataset.jobId;
+
+            // (중요) GET 요청으로 파일 다운로드는 window.location.href가 가장 간단합니다.
+            // 세션 쿠키가 자동으로 포함되어 서버 인증을 통과합니다.
+            window.location.href = `${API_BASE_URL}/coupons/jobs/${jobId}/download`;
+        }
+    });
+
+    /**
+     * (헬퍼) 메시지 표시
+     */
+    function showMessage(text, type) {
+        messageArea.textContent = text;
+        messageArea.className = type; // 'success' 또는 'error'
+    }
+
+</script>
+</body>
+</html>
