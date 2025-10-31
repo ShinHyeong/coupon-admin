@@ -15,19 +15,21 @@ public class Coupon {
     private String couponCode; //실제 쿠폰 코드 (UUID 등)
 
     @Column(nullable = false, length = 100)
-    private String customerId; //쿠폰을 발급받은 고객 id)
+    private String customerId; //쿠폰을 발급받은 고객 id
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String couponStatus = "ACTIVE"; //쿠폰 상태 (ACTIVE, USED, EXPIRED)
+    private CouponStatus couponStatus = CouponStatus.ACTIVE;
 
     @Column(nullable = false)
     private Long jobId; //이 쿠폰을 생성한 발급 작업 ID
 
-    @Column(nullable = false)
-    private LocalDateTime issuedAt; //발급 일시
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime issuedAt;
 
     @Column(nullable = false)
-    private LocalDateTime expiresAt; //만료일시
+    private LocalDateTime expiresAt;
 
     protected Coupon() {}
 
@@ -36,7 +38,5 @@ public class Coupon {
         this.customerId = customerId;
         this.jobId = jobId;
         this.expiresAt = expiresAt;
-        this.couponStatus = "ACTIVE";
-        this.issuedAt = LocalDateTime.now(); // 생성 시점의 발급 시간
     }
 }

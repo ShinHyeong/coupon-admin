@@ -2,11 +2,11 @@ package com.coupon.system.couponadmin.domain.couponissurancejob;
 
 import jakarta.persistence.*;
 import lombok.Getter;
-import org.hibernate.annotations.CurrentTimestamp;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-//업로드된 파일 1건에 대한 '작업' 정보를 저장함
+/* 업로드된 파일 1건에 대한 '작업' 정보를 저장함 */
 @Entity
 @Getter
 public class CouponIssuanceJob {
@@ -20,16 +20,18 @@ public class CouponIssuanceJob {
     @Column(nullable = false, length = 255, unique = true)
     private String savedFilePath; //서버에 임시 저장된 경로
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String jobStatus; //작업 상태 (예: PENDING, COMPLETED, FAILED)
+    private CouponIssuanceJobStatus jobStatus = CouponIssuanceJobStatus.UPLOADED;
 
     @Column(nullable = false)
-    private Long adminId;  //해당 파일을 올린 관리자id (FK)
+    private Long adminId; //해당 파일을 올린 관리자id (FK)
 
-    @CurrentTimestamp
-    private LocalDateTime createdAt; //올린 시각
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-    private LocalDateTime completedAt = null; // 작업 완료 일시
+    private LocalDateTime completedAt = null;
 
     private int totalCount = 0; //파일 내 총 customer_id 수
     private int successCount = 0; //발급 성공 건수
@@ -41,10 +43,9 @@ public class CouponIssuanceJob {
         this.originalFileName = originalFileName;
         this.savedFilePath = savedFilePath;
         this.adminId = adminId;
-        this.jobStatus = "UPLOADED"; // 생성 시점의 기본 상태
     }
 
-    public void updateJobStatus(String jobStatus){
+    public void updateJobStatus(CouponIssuanceJobStatus jobStatus){
         this.jobStatus = jobStatus;
     }
 

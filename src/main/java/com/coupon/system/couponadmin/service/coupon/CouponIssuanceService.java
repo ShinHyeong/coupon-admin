@@ -6,6 +6,7 @@ import com.coupon.system.couponadmin.domain.coupon.Coupon;
 import com.coupon.system.couponadmin.domain.coupon.CouponRepository;
 import com.coupon.system.couponadmin.domain.couponissurancejob.CouponIssuanceJob;
 import com.coupon.system.couponadmin.domain.couponissurancejob.CouponIssuanceJobRepository;
+import com.coupon.system.couponadmin.domain.couponissurancejob.CouponIssuanceJobStatus;
 import com.coupon.system.couponadmin.exception.auth.AdminNotFoundException;
 import com.coupon.system.couponadmin.exception.coupon.InvalidFileException;
 import jakarta.persistence.EntityNotFoundException;
@@ -97,8 +98,8 @@ public class CouponIssuanceService {
                 .orElseThrow(() -> new EntityNotFoundException("Job not found: " + jobId));
 
         try {
-            // 1. 상태 'PROCESSING'으로 변경
-            job.updateJobStatus("PROCESSING");
+            // 1. 상태 'PENDING'으로 변경
+            job.updateJobStatus(CouponIssuanceJobStatus.PENDING);
             couponIssuanceJobRepository.save(job);
 
             Path path = Paths.get(job.getSavedFilePath());
@@ -144,7 +145,7 @@ public class CouponIssuanceService {
             }
 
             // 5. 작업 완료 처리
-            job.updateJobStatus("COMPLETED");
+            job.updateJobStatus(CouponIssuanceJobStatus.COMPLETED);
             job.updateTotalCount(totalCount);
             job.updateSuccessCount(totalCount); // (임시) 지금은 실패 케이스가 없으므로
             job.updateCompletedAt(LocalDateTime.now());
@@ -156,7 +157,7 @@ public class CouponIssuanceService {
         } catch (Exception e) {
             // 6. 예외 발생 시 작업 실패 처리
             log.error("진행 실패 job ID {}: {}", jobId, e.getMessage(), e);
-            job.updateJobStatus("FAILED");
+            job.updateJobStatus(CouponIssuanceJobStatus.FAILED);
             couponIssuanceJobRepository.save(job);
         }
     }
