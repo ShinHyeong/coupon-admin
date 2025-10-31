@@ -165,7 +165,7 @@ public class CouponIssuanceService {
      * API 2: 파일 다운로드 (컨트롤러가 호출)
      * @return 다운로드할 파일 Resource 객체
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public Resource getFileResource(Long jobId) throws MalformedURLException {
         CouponIssuanceJob job = couponIssuanceJobRepository.findById(jobId)
                 .orElseThrow(() -> new EntityNotFoundException("Job not found: " + jobId));
@@ -185,7 +185,6 @@ public class CouponIssuanceService {
     /**
      * 파일 검증 (헤더: customer_id, 빈 파일 여부)
      */
-    @Transactional
     private void validateFile(MultipartFile file) throws IOException {
         if (file.isEmpty()) {
             throw new InvalidFileException("파일이 비어있습니다.");
@@ -212,7 +211,6 @@ public class CouponIssuanceService {
      * 파일을 물리적 저장소에 저장 (고유한 이름으로)
      * @return 저장된 실제 경로
      */
-    @Transactional
     private String saveFile(MultipartFile file) throws IOException {
         // 같은 경로 조작 방지
         String originalFileName = file.getOriginalFilename();
@@ -238,7 +236,7 @@ public class CouponIssuanceService {
      * 최신순(ID 역순)으로 정렬하여 조회
      * @Returns 작업물 목록
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public List<CouponIssuanceJob> getCouponJobs(){
         return couponIssuanceJobRepository.findAll(
                 Sort.by(Sort.Direction.DESC, "id")
@@ -250,7 +248,7 @@ public class CouponIssuanceService {
      * @param jobId
      * @return 원본 파일명
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public String getOriginalFileName(Long jobId){
         return couponIssuanceJobRepository.findById(jobId)
                 .map(CouponIssuanceJob::getOriginalFileName)
