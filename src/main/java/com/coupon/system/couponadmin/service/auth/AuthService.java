@@ -1,0 +1,31 @@
+package com.coupon.system.couponadmin.service.auth;
+
+import com.coupon.system.couponadmin.domain.auth.Admin;
+import com.coupon.system.couponadmin.domain.auth.AdminRepository;
+import com.coupon.system.couponadmin.dto.auth.request.LoginRequest;
+import com.coupon.system.couponadmin.exception.auth.AdminNotFoundException;
+import com.coupon.system.couponadmin.exception.auth.InvalidPasswordException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class AuthService {
+    private final AdminRepository adminRepository;
+
+    public AuthService(AdminRepository adminRepository) {
+        this.adminRepository = adminRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public Admin login(LoginRequest request){
+        Admin admin = adminRepository.findByAdminName(request.getAdminName())
+                .orElseThrow(AdminNotFoundException::new);
+
+        if (!request.getPassword().equals(admin.getPassword())){
+            throw new InvalidPasswordException();
+        }
+
+        return admin;
+    }
+
+}
