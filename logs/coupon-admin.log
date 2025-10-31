@@ -40,3 +40,47 @@ This generated password is for development use only. Your security configuration
 2025-11-01T05:21:50.008+09:00  INFO 9206 --- [http-nio-8080-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
 2025-11-01T05:21:50.008+09:00  INFO 9206 --- [http-nio-8080-exec-2] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
 2025-11-01T05:21:50.009+09:00  INFO 9206 --- [http-nio-8080-exec-2] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2025-11-01T06:06:27.712+09:00  INFO 9206 --- [SpringApplicationShutdownHook] o.s.b.w.e.tomcat.GracefulShutdown        : Commencing graceful shutdown. Waiting for active requests to complete
+2025-11-01T06:06:27.715+09:00  INFO 9206 --- [tomcat-shutdown] o.s.b.w.e.tomcat.GracefulShutdown        : Graceful shutdown complete
+2025-11-01T06:06:27.720+09:00  INFO 9206 --- [SpringApplicationShutdownHook] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-11-01T06:06:27.722+09:00  INFO 9206 --- [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2025-11-01T06:06:27.725+09:00  INFO 9206 --- [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2025-11-01T06:06:29.581+09:00  INFO 10018 --- [main] c.c.s.c.CouponAdminApplication           : Starting CouponAdminApplication using Java 17.0.16 with PID 10018 (/Users/psh/Downloads/coupon-admin/build/classes/java/main started by psh in /Users/psh/Downloads/coupon-admin)
+2025-11-01T06:06:29.582+09:00  INFO 10018 --- [main] c.c.s.c.CouponAdminApplication           : The following 1 profile is active: "dev"
+2025-11-01T06:06:29.819+09:00  INFO 10018 --- [main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-11-01T06:06:29.842+09:00  INFO 10018 --- [main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 19 ms. Found 3 JPA repository interfaces.
+2025-11-01T06:06:30.043+09:00  INFO 10018 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2025-11-01T06:06:30.048+09:00  INFO 10018 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-11-01T06:06:30.048+09:00  INFO 10018 --- [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.46]
+2025-11-01T06:06:30.066+09:00  INFO 10018 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-11-01T06:06:30.066+09:00  INFO 10018 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 467 ms
+2025-11-01T06:06:30.141+09:00  INFO 10018 --- [main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-11-01T06:06:30.158+09:00  INFO 10018 --- [main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.6.29.Final
+2025-11-01T06:06:30.167+09:00  INFO 10018 --- [main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2025-11-01T06:06:30.256+09:00  INFO 10018 --- [main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-11-01T06:06:30.265+09:00  INFO 10018 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2025-11-01T06:06:30.380+09:00  INFO 10018 --- [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@3ba46845
+2025-11-01T06:06:30.380+09:00  INFO 10018 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2025-11-01T06:06:30.398+09:00  WARN 10018 --- [main] org.hibernate.orm.deprecation            : HHH90000025: MySQL8Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-11-01T06:06:30.398+09:00  WARN 10018 --- [main] org.hibernate.orm.deprecation            : HHH90000026: MySQL8Dialect has been deprecated; use org.hibernate.dialect.MySQLDialect instead
+2025-11-01T06:06:30.405+09:00  INFO 10018 --- [main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 8.0
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2025-11-01T06:06:30.686+09:00  INFO 10018 --- [main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-11-01T06:06:30.687+09:00  INFO 10018 --- [main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-11-01T06:06:30.833+09:00  WARN 10018 --- [main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-11-01T06:06:30.849+09:00  INFO 10018 --- [main] o.s.b.a.w.s.WelcomePageHandlerMapping    : Adding welcome page: class path resource [static/index.html]
+2025-11-01T06:06:30.914+09:00  WARN 10018 --- [main] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 74e99d35-19fb-4da0-8c5f-bc75bb928bd8
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2025-11-01T06:06:30.917+09:00  INFO 10018 --- [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2025-11-01T06:06:31.021+09:00  INFO 10018 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path '/'
+2025-11-01T06:06:31.025+09:00  INFO 10018 --- [main] c.c.s.c.CouponAdminApplication           : Started CouponAdminApplication in 1.624 seconds (process running for 1.735)

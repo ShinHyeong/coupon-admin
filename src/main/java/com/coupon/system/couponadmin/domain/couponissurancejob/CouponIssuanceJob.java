@@ -1,12 +1,14 @@
 package com.coupon.system.couponadmin.domain.couponissurancejob;
 
 import jakarta.persistence.*;
+import lombok.Getter;
 import org.hibernate.annotations.CurrentTimestamp;
 
 import java.time.LocalDateTime;
 
 //업로드된 파일 1건에 대한 '작업' 정보를 저장함
 @Entity
+@Getter
 public class CouponIssuanceJob {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -40,46 +42,6 @@ public class CouponIssuanceJob {
         this.savedFilePath = savedFilePath;
         this.adminId = adminId;
         this.jobStatus = "UPLOADED"; // 생성 시점의 기본 상태
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getOriginalFileName() {
-        return originalFileName;
-    }
-
-    public String getSavedFilePath() {
-        return savedFilePath;
-    }
-
-    public String getJobStatus() {
-        return jobStatus;
-    }
-
-    public Long getAdminId() {
-        return adminId;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getCompletedAt() {
-        return completedAt;
-    }
-
-    public int getTotalCount() {
-        return totalCount;
-    }
-
-    public int getSuccessCount() {
-        return successCount;
-    }
-
-    public int getFailCount() {
-        return failCount;
     }
 
     public void updateJobStatus(String jobStatus){

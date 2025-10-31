@@ -1,8 +1,10 @@
 package com.coupon.system.couponadmin.domain.auth;
 
 import jakarta.persistence.*;
+import lombok.Getter;
 
 @Entity
+@Getter
 public class Admin {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -15,16 +17,4 @@ public class Admin {
     private String password;
 
     protected Admin() {}
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getAdminName() {
-        return adminName;
-    }
-
-    public String getPassword() {
-        return password;
-    }
 }
