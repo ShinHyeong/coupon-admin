@@ -4,6 +4,7 @@ import com.coupon.system.couponadmin.domain.auth.Admin;
 import com.coupon.system.couponadmin.dto.auth.request.LoginRequest;
 import com.coupon.system.couponadmin.service.auth.AuthService;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -29,7 +30,7 @@ public class AuthController {
     }
 
     @PostMapping("login")
-    public ResponseEntity<Void> login(@RequestBody LoginRequest request, HttpSession session){
+    public ResponseEntity<Void> login(@Valid @RequestBody LoginRequest request, HttpSession session){
         // 1. Admin 객체를 서비스로부터 받음
         Admin admin = authService.login(request);
 
@@ -49,12 +50,10 @@ public class AuthController {
         SecurityContext context = SecurityContextHolder.getContext();
         context.setAuthentication(authentication);
 
-        // 4. (제일 중요) 이 SecurityContext를 HttpSession에 저장
+        // 4. 이 SecurityContext를 HttpSession에 저장
         session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
 
         // 5. 200 OK 응답 반환
         return ResponseEntity.ok().build();
     }
-
-
 }
