@@ -17,12 +17,12 @@ import java.net.MalformedURLException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/coupons")
-public class CouponController {
+@RequestMapping("/coupons/jobs")
+public class CouponIssuanceController {
 
     private final CouponIssuanceService couponIssuanceService;
 
-    public CouponController(CouponIssuanceService couponIssuanceService) {
+    public CouponIssuanceController(CouponIssuanceService couponIssuanceService) {
         this.couponIssuanceService = couponIssuanceService;
     }
 
@@ -32,7 +32,7 @@ public class CouponController {
      * @param authentication (현재 로그인한 사용자 정보)
      * @return 생성된 Job 객체 (JSON)
      */
-    @PostMapping("/upload")
+    @PostMapping()
     public ResponseEntity<CouponIssuanceJob> uploadCouponFile(
             @RequestParam("file") MultipartFile file,
             Authentication authentication) throws IOException {
@@ -50,7 +50,7 @@ public class CouponController {
      * API 2: 작업 목록 조회
      * @return Job 리스트 (JSON)
      */
-    @GetMapping("/jobs")
+    @GetMapping
     public ResponseEntity<List<CouponIssuanceJob>> getCouponJobs() {
         List<CouponIssuanceJob> jobs = couponIssuanceService.getCouponJobs();
         return ResponseEntity.ok(jobs);
@@ -61,7 +61,7 @@ public class CouponController {
      * @param jobId 다운로드할 Job ID
      * @return 파일 Resource
      */
-    @GetMapping("/jobs/{jobId}/download")
+    @GetMapping("/{jobId}/file")
     public ResponseEntity<Resource> downloadCouponFile(@PathVariable Long jobId)
             throws MalformedURLException {
 
