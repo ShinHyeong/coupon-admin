@@ -10,7 +10,7 @@ import java.net.MalformedURLException;
 
 
 @Service
-public class S3StorageAbstract extends AbstractFileStorage {
+public class S3Storage extends AbstractFileStorage {
 
     @Override
     public String saveFile(MultipartFile file, String uniqueFileName) throws IOException {

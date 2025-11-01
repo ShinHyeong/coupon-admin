@@ -14,7 +14,7 @@ public abstract class AbstractFileStorage implements FileStorage{
     public final String save(MultipartFile file) throws IOException{
         String uniqueFileName = generateUniqueFileName(file.getOriginalFilename());
         return saveFile(file, uniqueFileName);
-    };
+    }
 
     /**
      * 파일을 고유한 이름 정하는 규칙 결정 (공통로직)

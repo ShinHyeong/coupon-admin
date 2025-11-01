@@ -41,6 +41,10 @@ dependencies {
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
     implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+    //Apache POI : Excel 파일(.xls, .xlsx, .xlsm)을 Java로 읽기 위해
+    implementation 'org.apache.poi:poi:5.2.5' //HSSF - .xls 구버전
+    implementation 'org.apache.poi:poi-ooxml:5.2.5' //XSSF - .xlsx, .xlsm 신버전
 }
 
 tasks.named('test') {
