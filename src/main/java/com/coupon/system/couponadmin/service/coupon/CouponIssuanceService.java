@@ -41,17 +41,19 @@ public class CouponIssuanceService {
     private final CouponIssuanceJobRepository couponIssuanceJobRepository;
     private final CouponRepository couponRepository;
     private final AdminRepository adminRepository; // adminId를 찾기 위해
-    private final String uploadDir;
 
-    // application.yml에서 정의한 파일 저장 경로 주입
+    private final FileStorage fileStorage;
+
+    // 생성자에서 'FileStorage' 인터페이스 타입을 받고 (유연성 확보),
+    // @Primary 또는 @Qualifier로 실제 구현체(S3/Local)를 주입받는다.
     public CouponIssuanceService(CouponIssuanceJobRepository couponIssuanceJobRepository,
                                  CouponRepository couponRepository,
                                  AdminRepository adminRepository,
-                                 @Value("${file.upload-dir}") String uploadDir) {
+                                 FileStorage fileStorage) {
         this.couponIssuanceJobRepository = couponIssuanceJobRepository;
         this.couponRepository = couponRepository;
         this.adminRepository = adminRepository;
-        this.uploadDir = uploadDir;
+        this.fileStorage = fileStorage;
     }
 
     /**
@@ -67,8 +69,8 @@ public class CouponIssuanceService {
         Admin savedAdmin = adminRepository.findByAdminName(adminName)
                 .orElseThrow(AdminNotFoundException::new);
 
-        // 3. 파일 저장 (물리적)
-        String savedFilePath = saveFile(file);
+        // 3. 저장소에 업로드한 파일 저장한다
+        String savedFilePath = fileStorage.save(file);
 
         // 4. 작업(Job) 생성 후 DB에 반영한다
         CouponIssuanceJob savedJob = couponIssuanceJobRepository.save(new CouponIssuanceJob(
@@ -91,10 +93,21 @@ public class CouponIssuanceService {
         );
     }
 
-        // 5. 비동기 발급 처리 (핵심)
-        processCouponIssuance(savedJob.getId());
+    /**
+     * API 2: 파일 다운로드 (컨트롤러가 호출)
+     * @return 다운로드할 파일 Resource 객체
+     */
+    @Transactional(readOnly = true)
+    public Resource getFileResource(Long jobId){
 
-        return savedJob;
+        CouponIssuanceJob job = couponIssuanceJobRepository.findById(jobId)
+                .orElseThrow(() -> new EntityNotFoundException("Job not found: " + jobId));
+
+        try {
+            return fileStorage.loadAsResource(job.getSavedFilePath());
+        } catch (Exception e) {
+            throw new RuntimeException("Could not read file: " + job.getOriginalFileName(), e);
+        }
     }
 
 
@@ -118,10 +131,10 @@ public class CouponIssuanceService {
             List<Coupon> couponsToSave = new ArrayList<>(BATCH_SIZE);
             int totalCount = 0;
 
-            // 2. 저장된 파일 읽기
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(Files.newInputStream(path)))) {
-                String header = reader.readLine(); // 헤더(customer_id)는 건너뛴다
+            try (InputStream inputStream = fileStorage.loadAsInputStream(job.getSavedFilePath());
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
 
+                String header = reader.readLine(); //header 건너뛰기
                 String line;
 
                 while ((line = reader.readLine()) != null) {
