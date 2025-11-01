@@ -1,6 +1,5 @@
 package com.coupon.system.couponadmin.security;
 
-import com.coupon.system.couponadmin.domain.auth.AdminRole;
 import com.coupon.system.couponadmin.dto.auth.response.LoginResponse;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

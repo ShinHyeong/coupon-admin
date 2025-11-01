@@ -5,7 +5,6 @@ import com.coupon.system.couponadmin.domain.auth.AdminRepository;
 import com.coupon.system.couponadmin.dto.auth.request.LoginRequest;
 import com.coupon.system.couponadmin.dto.auth.response.LoginResponse;
 import com.coupon.system.couponadmin.exception.auth.AdminNotFoundException;
-import com.coupon.system.couponadmin.exception.auth.InvalidPasswordException;
 import com.coupon.system.couponadmin.security.JwtTokenProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,10 +24,10 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request){
-        Admin admin = adminRepository.findByAdminName(request.getAdminName())
+        Admin admin = adminRepository.findByAdminName(request.adminName())
                 .orElseThrow(AdminNotFoundException::new);
 
-        if (!passwordEncoder.matches(request.getPassword(), admin.getPassword())) {
+        if (!passwordEncoder.matches(request.password(), admin.getPassword())) {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
 
