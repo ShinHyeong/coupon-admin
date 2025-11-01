@@ -114,22 +114,23 @@
                     // DTO와 동일한 필드명 사용
                     adminName: adminName,
                     password: password
-                }),
-                // (중요) 세션 쿠키를 주고받기 위해 'credentials' 옵션 추가
-                credentials: 'include'
+                })
             });
 
             // 5. 응답 처리
             if (response.ok) {
                 // 5-1. 로그인 성공 (HTTP 200)
-                // AuthService가 void를 반환하므로, JSON 파싱(response.json()) 불필요
+                // 서버가 보낸 LoginResponse을 JSON으로 파싱
+                const data = await response.json();
+                // 5-2. 브라우저의 localStorage에 엑세스토큰 저장
+                localStorage.setItem('accessToken', data.accessToken);
 
                 messageElement.textContent = '로그인 성공! 잠시 후 이동합니다.';
                 messageElement.className = 'success';
 
-                // 1초 후 관리자 메인 페이지(가상)로 이동
+                // 1초 후 관리자 메인 페이지로 이동
                 setTimeout(() => {
-                    window.location.href = '/main.html'; // 실제 메인 페이지 주소로 변경
+                    window.location.href = '/main.html';
                 }, 1000);
 
             } else {

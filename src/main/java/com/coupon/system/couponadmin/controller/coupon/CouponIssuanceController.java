@@ -32,7 +32,7 @@ public class CouponIssuanceController {
      * @param authentication (현재 로그인한 사용자 정보)
      * @return 생성된 Job 객체 (JSON)
      */
-    @PostMapping()
+    @PostMapping
     public ResponseEntity<CouponIssuanceJob> uploadCouponFile(
             @RequestParam("file") MultipartFile file,
             Authentication authentication) throws IOException {

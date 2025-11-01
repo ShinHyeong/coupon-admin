@@ -16,5 +16,9 @@ public class Admin {
     @Column(nullable = false)
     private String password;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AdminRole role = AdminRole.ADMIN;
+
     protected Admin() {}
 }

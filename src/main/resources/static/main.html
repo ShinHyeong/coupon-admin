@@ -145,7 +145,22 @@
     const jobsTableBody = document.getElementById('jobs-table-body');
 
     /**
-     * (기능 1) 페이지 로드 시, 작업 목록을 불러옵니다.
+    * (헬퍼) loalStorage에서 토큰을 가져옴
+    * 토큰이 없으면 로그인 페이지로 강제 리다이렉션
+    */
+
+    function getAuthToken() {
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+            alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+            window.location.href = 'index.html';
+            return null;
+        }
+        return token;
+    }
+
+    /**
+     * (기능 1) 페이지 로드 시, 작업 목록을 불러옴
      */
     document.addEventListener('DOMContentLoaded', () => {
         fetchJobs();
@@ -157,6 +172,10 @@
     uploadForm.addEventListener('submit', async (event) => {
         event.preventDefault(); // 폼 기본 제출 방지
 
+        // API 호출 전, 토큰 확인
+        const token = getAuthToken();
+        if (!token) return; // 토큰 없으면 중단
+
         if (couponFile.files.length === 0) {
             showMessage('파일을 선택해주세요.', 'error');
             return;
@@ -167,11 +186,13 @@
         formData.append('file', file); // 'file'은 컨트롤러의 @RequestParam 이름
 
         try {
-            // (필수) 세션 유지를 위해 credentials: 'include'
-            const response = await fetch(`${API_BASE_URL}/coupons/upload`, {
+            // API 경로 및 헤더 수정
+            const response = await fetch(`${API_BASE_URL}/coupons/jobs`, {
                 method: 'POST',
-                credentials: 'include',
-                body: formData, // JSON.stringify가 아님!
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData,
             });
 
             if (response.ok) {
@@ -202,16 +223,24 @@
      * (기능 3) 작업 목록(Job List)을 서버에서 가져와 테이블에 표시
      */
     async function fetchJobs() {
+
+        // API 호출 전, 토큰 확인
+        const token = getAuthToken();
+        if (!token) return; // 토큰 없으면 중단
+
         try {
             const response = await fetch(`${API_BASE_URL}/coupons/jobs`, {
                 method: 'GET',
-                credentials: 'include',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
 
             if (!response.ok) {
                 // 세션 만료 등으로 401/403 에러 시, 로그인 페이지로
                 if (response.status === 401 || response.status === 403) {
-                    window.location.href = '/index.html';
+                    localStorage.removeItem('accessToken'); // 잘못된 토큰 삭제
+                    window.location.href = 'index.html';
                 }
                 throw new Error('작업 목록을 불러오는데 실패했습니다.');
             }
@@ -227,7 +256,7 @@
             jobs.forEach(job => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${job.id}</td>
+                    <td>${job.jobId}</td>
                     <td>${job.originalFileName}</td>
                     <td class="status-${job.jobStatus.toLowerCase()}">${job.jobStatus}</td>
                     <td>${job.totalCount}</td>
@@ -250,16 +279,72 @@
 
     /**
      * (기능 4) 다운로드 버튼 클릭 이벤트 (이벤트 위임)
+     * window.location.href는 인증 헤더를 보낼 수 없으므로,
+     * fetch API로 파일을 Blob으로 다운로드받아 수동으로 저장시킴
      */
-    jobsTableBody.addEventListener('click', (event) => {
+    jobsTableBody.addEventListener('click', async (event) => {
         if (event.target.classList.contains('download-btn')) {
             const jobId = event.target.dataset.jobId;
-
-            // (중요) GET 요청으로 파일 다운로드는 window.location.href가 가장 간단합니다.
-            // 세션 쿠키가 자동으로 포함되어 서버 인증을 통과합니다.
-            window.location.href = `${API_BASE_URL}/coupons/jobs/${jobId}/download`;
+            await downloadFile(jobId);
         }
     });
+
+    /**
+     * (헬퍼) (기능 4-1) fetch로 파일 다운로드
+     */
+    async function downloadFile(jobId) {
+        const token = getAuthToken();
+        if (!token) return;
+
+        try {
+            // 1. fetch로 파일 요청
+            const response = await fetch(`${API_BASE_URL}/coupons/jobs/${jobId}/file`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    window.location.href = 'index.html';
+                }
+                throw new Error('다운로드 실패');
+            }
+
+            // 2. 응답 헤더에서 'Content-Disposition'을 읽어 파일명 확보
+            const disposition = response.headers.get('content-disposition');
+            let filename = "download.csv"; // 기본 파일명
+            if (disposition && disposition.indexOf('attachment') !== -1) {
+                const filenameRegex = /filename="([^"]+)"/;
+                const matches = filenameRegex.exec(disposition);
+                if (matches != null && matches[1]) {
+                    filename = matches[1]; // e.g. "original_file.csv"
+                }
+            }
+
+            // 3. 응답 본문(파일 데이터)을 Blob으로 변환
+            const blob = await response.blob();
+
+            // 4. Blob을 가리키는 URL 생성
+            const url = window.URL.createObjectURL(blob);
+
+            // 5. 보이지 않는 <a> 태그를 생성하여 다운로드 트리거
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+
+            // 6. 임시 URL 및 <a> 태그 정리
+            window.URL.revokeObjectURL(url);
+            a.remove();
+
+        } catch (error) {
+            showMessage(error.message, 'error');
+        }
+    }
 
     /**
      * (헬퍼) 메시지 표시

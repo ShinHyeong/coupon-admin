@@ -1,14 +1,17 @@
 package com.coupon.system.couponadmin.config;
 
 // vvv 1. HttpMethod를 꼭 임포트 하세요 vvv
+import com.coupon.system.couponadmin.security.JwtAuthenticationFilter;
 import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -18,6 +21,12 @@ import java.util.Arrays;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -31,18 +40,43 @@ public class SecurityConfig {
                 .formLogin(formLogin -> formLogin.disable())
                 .httpBasic(httpBasic -> httpBasic.disable())
 
+                //3. 세션 관리 정책을 STATELESS(상태 없음)로 설정
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+
                 // 3. 경로별 접근 권한 설정
                 .authorizeHttpRequests(authz -> authz
                         // Preflight OPTIONS 요청은 모두 허용
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // "/auth/login" 경로는 인증 없이 무조건 허용
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/coupons/**").authenticated()
-                        // HTML 파일들도 허용
                         .requestMatchers("/index.html").permitAll()
-                        .requestMatchers("/main.html").authenticated()
+
+                        // 쿠폰 관리
+                        .requestMatchers("/coupons/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/main.html").permitAll()
+
+                        /* 추가 예정 기능 : 아직 개발 안함
+                        // 관리자 계정 조회
+                        .requestMatchers(HttpMethod.GET, "/admins", "/admins/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+
+                        // 관리자 계정 생성/수정/삭제
+                        .requestMatchers(HttpMethod.POST, "/admins").hasRole("SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/admins/**").hasRole("SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/admins/**").hasRole("SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/admins/**").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/manage.html").permitAll()
+                        */
+
                         .anyRequest().authenticated()
+                )
+
+                // Spring Security의 기본 필터(UsernamePasswordAuthenticationFilter)
+                // 앞에 내가 만든 'jwtAuthenticationFilter' 추가
+                .addFilterBefore(
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class
                 );
 
         return http.build();
