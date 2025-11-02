@@ -9,9 +9,11 @@ import com.coupon.system.couponadmin.domain.couponissurancejob.CouponIssuanceJob
 import com.coupon.system.couponadmin.domain.couponissurancejob.CouponIssuanceJobStatus;
 import com.coupon.system.couponadmin.dto.couponissurancejob.response.CreateCouponIssuanceJobResponse;
 import com.coupon.system.couponadmin.dto.couponissurancejob.response.GetAllCouponIssuanceJobsResponse;
+import com.coupon.system.couponadmin.dto.file.DownloadCouponIssuanceFileResponse;
 import com.coupon.system.couponadmin.exception.auth.AdminNotFoundException;
 import com.coupon.system.couponadmin.exception.coupon.InvalidFileException;
 import com.coupon.system.couponadmin.service.file.FileStorage;
+import com.coupon.system.couponadmin.util.GenericBatchProcessor;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -29,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -37,6 +40,9 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import com.coupon.system.couponadmin.dto.couponissurancejob.request.CreateCouponIssuanceJobRequest;
+import com.coupon.system.couponadmin.dto.couponissurancejob.response.CreatePresignedUrlResponse;
+import java.io.BufferedInputStream;
 
 @Slf4j
 @Service
@@ -45,6 +51,7 @@ public class CouponIssuanceService {
     //청크(Chunk) 단위로 처리할 배치 크기
     private static final int BATCH_SIZE = 1000;
 
+    private final CouponBatchService couponBatchService;
     private final CouponIssuanceJobRepository couponIssuanceJobRepository;
     private final CouponRepository couponRepository;
     private final AdminRepository adminRepository; // adminId를 찾기 위해
@@ -53,10 +60,8 @@ public class CouponIssuanceService {
 
     // 생성자에서 'FileStorage' 인터페이스 타입을 받고 (유연성 확보),
     // @Primary 또는 @Qualifier로 실제 구현체(S3/Local)를 주입받는다.
-    public CouponIssuanceService(CouponIssuanceJobRepository couponIssuanceJobRepository,
-                                 CouponRepository couponRepository,
-                                 AdminRepository adminRepository,
-                                 FileStorage fileStorage) {
+    public CouponIssuanceService(CouponBatchService couponBatchService, CouponIssuanceJobRepository couponIssuanceJobRepository, CouponRepository couponRepository, AdminRepository adminRepository, FileStorage fileStorage) {
+        this.couponBatchService = couponBatchService;
         this.couponIssuanceJobRepository = couponIssuanceJobRepository;
         this.couponRepository = couponRepository;
         this.adminRepository = adminRepository;
@@ -126,79 +131,48 @@ public class CouponIssuanceService {
     }
 
     /**
-     * API 2: 파일 다운로드 (컨트롤러가 호출)
-     * @return 다운로드할 파일 Resource 객체
-     */
-    @Transactional(readOnly = true)
-    public Resource getFileResource(Long jobId){
-
-        CouponIssuanceJob job = couponIssuanceJobRepository.findById(jobId)
-                .orElseThrow(() -> new EntityNotFoundException("Job not found: " + jobId));
-
-        try {
-            return fileStorage.loadAsResource(job.getSavedFilePath());
-        } catch (Exception e) {
-            throw new RuntimeException("Could not read file: " + job.getOriginalFileName(), e);
-        }
-    }
-
-
-    /**
-     * API 3 : 비동기로 쿠폰 발급 처리
+     * API 3-2 : 비동기로 파일 검증과 쿠폰 발급을 처리한다
      * 검증 -> 파싱 -> 생성
-     * 쿠폰은 대용량으로 발급된다.
+     * 쿠폰은 대용량으로 발급됨을 가정하였다
      */
     @Async // 이 메서드는 별도 스레드에서 비동기로 동작하게 한다
-    @Transactional
     public void issueCoupons(Long jobId) {
 
-        CouponIssuanceJob job = couponIssuanceJobRepository.findById(jobId)
+        CouponIssuanceJob savedJob = couponIssuanceJobRepository.findById(jobId)
                 .orElseThrow(() -> new EntityNotFoundException("Job not found: " + jobId));
 
-        // 파싱 결과 (고객 ID 목록)
-        List<String> customerIds;
         int totalCount = 0;
 
         try {
             // 1. 상태 'PENDING' 변경
-            job.updateJobStatus(CouponIssuanceJobStatus.PENDING);
-            couponIssuanceJobRepository.save(job);
+            savedJob.updateJobStatus(CouponIssuanceJobStatus.PENDING);
+            couponIssuanceJobRepository.save(savedJob);
+
+            // 2. 파일을 딱 한 번 열고, 확장자에 따라 파일 검증 및 파싱 처리
+            //배치 처리기(Processor) 생성
+            Consumer<List<Coupon>> saveAction = batch ->
+                    couponBatchService.saveCouponsInNewTransaction(batch); //배치단위로 트랜잭션
+            GenericBatchProcessor<Coupon> batchProcessor = new GenericBatchProcessor<>(BATCH_SIZE, saveAction);
 
             // S3/Local 등에서 파일을 스트림으로 읽어옴
             try (InputStream inputStream = new BufferedInputStream(fileStorage.loadAsInputStream(savedJob.getSavedFilePath()))) {
 
+                // 2-1. 스트림으로 파일 검증 (스트림을 닫지 않고 진행)
+                String originalFilename  = savedJob.getOriginalFileName();
+                validateFileStream(inputStream, originalFilename);
+
+                // 2-2. 파일 파싱과 쿠폰발행작업 생성을 스트리밍으로 동시에 처리 (OOM 방지)
                 if (originalFilename.endsWith(".csv")) {
-                    customerIds = parseCsv(inputStream);
-                } else if (originalFilename.endsWith(".xls") || originalFilename.endsWith(".xlsx") || originalFilename.endsWith(".xlsm")) {
-                    customerIds = parseExcel(inputStream);
+                    processCsvStream(inputStream, jobId, batchProcessor);
+                } else if (originalFilename.endsWith(".xls") || originalFilename.endsWith(".xlsx")) {
+                    processExcelStream(inputStream, jobId, batchProcessor);
                 } else {
                     throw new InvalidFileException("지원하지 않는 파일 형식입니다.");
                 }
             }
 
-            // 3. 회원 목록이 비어있는지 검증
-            if (customerIds.isEmpty()) {
-                throw new InvalidFileException("헤더 외에 회원 목록이 비어있습니다.");
-            }
-
-            // 4. [배치 처리] 파싱된 'customerIds' 리스트로 쿠폰 생성
-            totalCount = customerIds.size();
-            List<Coupon> couponsToSave = new ArrayList<>(BATCH_SIZE);
-
-            for (String customerId : customerIds) {
-                couponsToSave.add(new Coupon(
-                        UUID.randomUUID().toString(),
-                        customerId,
-                        jobId,
-                        LocalDateTime.now().plusDays(30)
-                ));
-
-                if (couponsToSave.size() == BATCH_SIZE) {
-                    couponRepository.saveAll(couponsToSave);
-                    couponsToSave.clear();
-                    log.info("Job ID {}: {}/{} 아이템 진행중...", jobId, couponsToSave.size(), totalCount);
-                }
-            }
+            // 3. 루프가 끝난 후, 남아있는 쿠폰들을 최종적으로 저장
+            batchProcessor.flush();
 
             // 4. 작업 완료 처리
             savedJob.updateJobStatus(CouponIssuanceJobStatus.COMPLETED);
@@ -220,140 +194,143 @@ public class CouponIssuanceService {
     // --- 헬퍼 메서드 ---
 
     /**
-     * 파일 확장자를 확인하고, 스트림을 열어 각 포맷에 맞는 검증 메서드를 호출
+     * InputStream을 직접 검증함
+     * 스트림을 두 번 읽기 위해 mark/reset 사용
      */
-    private void validateFile(MultipartFile multipartFile) throws IOException, InvalidFileException {
-        String originalFilename = multipartFile.getOriginalFilename();
-        if (originalFilename == null || originalFilename.isEmpty()) {
-            throw new InvalidFileException("파일 이름이 없습니다.");
+    private void validateFileStream(InputStream inputStream, String originalFilename) throws IOException, InvalidFileException {
+        if (!inputStream.markSupported()) {
+            throw new IOException("Mark/reset not supported by this InputStream");
+        }
+        inputStream.mark(Integer.MAX_VALUE); // 스트림 시작점 마킹
+
+        if (originalFilename.endsWith(".csv")) {
+            validateCsv(inputStream);
+        } else if (originalFilename.endsWith(".xls") || originalFilename.endsWith(".xlsx")) {
+            validateExcel(inputStream);
+        } else {
+            throw new InvalidFileException("지원하지 않는 파일 형식입니다.");
         }
 
-        try (InputStream inputStream = multipartFile.getInputStream()) {
-            if (originalFilename.endsWith(".csv")) {
-                validateCsv(inputStream);
-            } else if (originalFilename.endsWith(".xls") || originalFilename.endsWith(".xlsx") || originalFilename.endsWith(".xlsm")) {
-                validateExcel(inputStream);
-            } else {
-                throw new InvalidFileException("지원하지 않는 파일 형식입니다.");
-            }
-        }
+        inputStream.reset(); // 파싱을 위해 스트림 포인터를 시작점으로 되돌림
     }
 
     /**
      * CSV 파일 검증
+     * 스트림의 생명주기는 이 메서드를 호출한 issueCoupons에서 관리함
+     * reader를 직접 닫지 않음
      */
     private void validateCsv(InputStream inputStream) throws IOException, InvalidFileException {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
 
-            //1. 헤더 검증
-            String header = reader.readLine();
-            if (header == null) {
-                throw new InvalidFileException("파일 헤더가 비어있습니다.");
-            }
-            if (!"customer_id".equalsIgnoreCase(header.trim())) {
-                throw new InvalidFileException("파일 헤더가 'customer_id'가 아닙니다.");
-            }
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
 
-            //2. 내용 존재 여부 검증 : 데이터가 한 줄 이상 있는지 확인 (빈 줄은 무시)
-            boolean hasData = false;
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (!line.trim().isEmpty()) {
-                    hasData = true;
-                    break; // 데이터 한 줄이라도 찾으면 즉시 검증 종료! (효율적)
-                }
-            }
-            if (!hasData) {
-                throw new InvalidFileException("헤더 외에 회원 목록이 비어있습니다.");
+        //1. 헤더 검증
+        String header = reader.readLine();
+        if (header == null || !"customer_id".equalsIgnoreCase(header.trim())) {
+            throw new InvalidFileException("파일 헤더가 'customer_id'가 아니거나 비어있습니다.");
+        }
+
+        //2. 내용 존재 여부 검증
+        boolean hasData = false;
+        String line;
+        while ((line = reader.readLine()) != null) {
+            if (!line.trim().isEmpty()) {
+                hasData = true;
+                break; //한줄이라도 있으면 검증 종료
             }
         }
+        if (!hasData) {
+            throw new InvalidFileException("헤더 외에 회원 목록이 비어있습니다.");
+        }
+
     }
+
 
     /**
      * Excel 파일 검증
      */
     private void validateExcel(InputStream inputStream) throws IOException, InvalidFileException {
-        try (Workbook workbook = WorkbookFactory.create(inputStream)) {
-            Sheet sheet = workbook.getSheetAt(0);
 
-            //1. 헤더 검증
-            Row headerRow = sheet.getRow(0);
-            if (headerRow == null) {
-                throw new InvalidFileException("파일 헤더가 비어있습니다.");
-            }
-            Cell headerCell = headerRow.getCell(0);
-            if (headerCell == null || !"customer_id".equalsIgnoreCase(headerCell.getStringCellValue().trim())) {
-                throw new InvalidFileException("파일 헤더가 'customer_id'가 아닙니다.");
-            }
+        Workbook workbook = WorkbookFactory.create(inputStream);
+        Sheet sheet = workbook.getSheetAt(0);
 
-            //2. 내용 존재 여부 검증
-            boolean hasData = false;
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row dataRow = sheet.getRow(i);
-                if (dataRow == null) continue;
-                Cell firstCell = dataRow.getCell(0);
-                if (firstCell != null && firstCell.getCellType() != CellType.BLANK) {
-                    hasData = true;
-                    break; // 데이터 셀을 하나라도 찾으면 즉시 검증 종료! (효율적)
-                }
+        //1. 헤더 검증
+        Row headerRow = sheet.getRow(0);
+        if (headerRow == null) {
+            throw new InvalidFileException("파일 헤더가 비어있습니다.");
+        }
+        Cell headerCell = headerRow.getCell(0);
+        if (headerCell == null || !"customer_id".equalsIgnoreCase(headerCell.getStringCellValue().trim())) {
+            throw new InvalidFileException("파일 헤더가 'customer_id'가 아닙니다.");
+        }
+
+        //2. 내용 존재 여부 검증
+        boolean hasData = false;
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            Row dataRow = sheet.getRow(i);
+            if (dataRow == null) continue;
+            Cell firstCell = dataRow.getCell(0);
+            if (firstCell != null && firstCell.getCellType() != CellType.BLANK) {
+                hasData = true;
+                break; // 데이터 셀을 하나라도 찾으면 즉시 검증 종료! (효율적)
             }
-            if (!hasData) {
-                throw new InvalidFileException("헤더 외에 회원 목록이 비어있습니다.");
-            }
+        }
+        if (!hasData) {
+            throw new InvalidFileException("헤더 외에 회원 목록이 비어있습니다.");
         }
     }
 
+
     /**
-     * CSV 파일 파서
-     * InputStream -> List<String>으로 변환함
+     * CSV 파싱 및 쿠폰 발행 작업 생성 (배치단위)
+     * 쿠폰 발행 작업 생성은 처리기가 책임을 가짐
      */
-    private List<String> parseCsv(InputStream inputStream) throws IOException, InvalidFileException {
-        List<String> customerIds = new ArrayList<>();
+    private void processCsvStream(InputStream inputStream, Long jobId, GenericBatchProcessor<Coupon> processor) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-            String header = reader.readLine();
-            // 2. 데이터 파싱
+            reader.readLine(); // 헤더 스킵
             String line;
             while ((line = reader.readLine()) != null) {
-                if (!line.trim().isEmpty()) {
-                    customerIds.add(line.trim());
-                }
+                String customerId = line.trim();
+                if (customerId.isEmpty()) continue;
+
+                Coupon coupon = new Coupon(UUID.randomUUID().toString(), customerId, jobId, LocalDateTime.now().plusDays(30));
+                processor.add(coupon); // 저장 로직은 처리기에 위임
             }
         }
-        return customerIds;
     }
 
     /**
-     * Excel 파일 파서
-     * InputStream -> List<String>으로 변환함
+     * Excel 파싱 및 쿠폰 발행 작업 생성 (배치단위)
+     * 쿠폰 발행 작업 생성은 처리기가 책임을 가짐
      */
-    private List<String> parseExcel(InputStream inputStream) throws IOException, InvalidFileException {
-        List<String> customerIds = new ArrayList<>();
-        try (Workbook workbook = WorkbookFactory.create(inputStream)) {
+    private void processExcelStream(InputStream inputStream, Long jobId, GenericBatchProcessor<Coupon> processor) throws IOException {
+        try (Workbook workbook = com.monitorjbl.xlsx.StreamingReader.builder().open(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
+            for (Row row : sheet) {
+                if (row.getRowNum() == 0) continue; // 헤더 스킵
 
-            // 2. 데이터 파싱 (1번 row부터)
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(i);
-                if (row == null) continue;
-
-                Cell cell = row.getCell(0);
-                if (cell == null) continue;
-
-                String customerId = "";
-                if (cell.getCellType() == CellType.STRING) {
-                    customerId = cell.getStringCellValue().trim();
-                } else if (cell.getCellType() == CellType.NUMERIC) {
-                    customerId = String.valueOf((long) cell.getNumericCellValue());
-                }
-
+                String customerId = parseCustomerIdFromCell(row.getCell(0));
                 if (!customerId.isEmpty()) {
-                    customerIds.add(customerId);
+                    Coupon coupon = new Coupon(UUID.randomUUID().toString(), customerId, jobId, LocalDateTime.now().plusDays(30));
+                    processor.add(coupon); // 저장 로직은 처리기에 위임
                 }
             }
         }
-        return customerIds;
     }
 
+    /**
+     * Excel 셀 파싱 로직
+     */
+    private String parseCustomerIdFromCell(Cell cell) {
+        if (cell == null) return "";
+
+        String customerId = "";
+        if (cell.getCellType() == CellType.STRING) {
+            customerId = cell.getStringCellValue().trim();
+        } else if (cell.getCellType() == CellType.NUMERIC) {
+            customerId = String.valueOf((long) cell.getNumericCellValue());
+        }
+        return customerId;
+    }
 
     /**
      * 최신순(ID 역순)으로 정렬하여 모든 작업 목록을 조회한다
@@ -378,17 +355,5 @@ public class CouponIssuanceService {
                         job.getCreatedAt()
                 ))
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * 작업id로 원본 파일명 조회
-     * @param jobId
-     * @return 원본 파일명
-     */
-    @Transactional(readOnly = true)
-    public String getOriginalFileName(Long jobId){
-        return couponIssuanceJobRepository.findById(jobId)
-                .map(CouponIssuanceJob::getOriginalFileName)
-                .orElse("file.csv");
     }
 }

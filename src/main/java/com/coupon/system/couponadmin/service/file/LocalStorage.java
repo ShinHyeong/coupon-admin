@@ -1,7 +1,6 @@
 package com.coupon.system.couponadmin.service.file;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -15,7 +14,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @Service
-@Primary
 public class LocalStorage extends AbstractFileStorage {
 
     private final String uploadDir;
