@@ -79,6 +79,11 @@
             color: #721c24;
             display: block;
         }
+        #message-area.info {
+            background-color: #cce5ff;
+            color: #004085;
+            display: block;
+        }
 
         /* 작업 내역 테이블 스타일 */
         #jobs-table {
@@ -182,36 +187,60 @@
         }
 
         const file = couponFile.files[0];
-        const formData = new FormData();
-        formData.append('file', file); // 'file'은 컨트롤러의 @RequestParam 이름
 
         try {
-            // API 경로 및 헤더 수정
-            const response = await fetch(`${API_BASE_URL}/coupons/jobs`, {
+            // --- 1단계: BE에 Presigned URL 요청 ---
+            showMessage('업로드 URL을 요청 중입니다...', 'info');
+            const presignedUrlResponse = await fetch(`${API_BASE_URL}/coupons/jobs/presigned-url`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 },
-                body: formData,
+                body: JSON.stringify({ fileName: file.name })
             });
 
-            if (response.ok) {
-                const job = await response.json();
-                showMessage(`[Job ID: ${job.jobId}] 파일 업로드 성공. 발급을 시작합니다.`, 'success');
-                fetchJobs(); // 업로드 성공 시, 목록 새로고침
+            if (!presignedUrlResponse.ok) {
+                throw new Error('업로드 URL을 받아오는데 실패했습니다.');
+            }
+            const { presignedUrl, savedFilePath } = await presignedUrlResponse.json();
+
+            // --- 2단계: 받은 URL로 설정한 클라우드 저장소에 파일 직접 업로드 ---
+            showMessage('설정한 클라우드 저장소로 파일을 업로드 중입니다...', 'info');
+            const cloudStorageResponse = await fetch(presignedUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': file.type // 파일의 MIME 타입을 헤더에 포함
+                },
+                body: file
+            });
+
+            if (!cloudStorageResponse.ok) {
+                throw new Error('설정한 클라우드 저장소에 파일을 업로드하는데 실패했습니다.');
+            }
+
+            // --- 3단계: 업로드 완료 후 BE에 작업 생성 요청 ---
+            showMessage('업로드 완료! 쿠폰 발급 작업을 생성합니다.', 'info');
+            const jobCreationResponse = await fetch(`${API_BASE_URL}/coupons/jobs`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    originalFileName: file.name,
+                    savedFilePath: savedFilePath // 1단계에서 받은 설정한 클라우드 저장소 경로
+                })
+            });
+
+            if (jobCreationResponse.ok) {
+                const job = await jobCreationResponse.json();
+                showMessage(`[Job ID: ${job.jobId}] 작업 생성 성공. 발급을 시작합니다.`, 'success');
+                fetchJobs(); // 목록 새로고침
                 uploadForm.reset(); // 폼 초기화
             } else {
-                let errorMessage = '알 수 없는 오류가 발생했습니다.';
-                try {
-                    const error = await response.json();
-
-                    // (수정) error.message가 있으면 쓰고, 없으면 error.error라도 씀
-                    errorMessage = error.message || error.error || '서버 응답 오류';
-
-                } catch (e) {
-                    errorMessage = '서버 응답을 파싱할 수 없습니다 (아마도 HTML 오류).';
-                }
-                showMessage(`업로드 실패: ${errorMessage}`, 'error');
+                const errorData = await jobCreationResponse.json();
+                throw new Error(errorData.message || '작업 생성에 실패했습니다.');
             }
 
         } catch (error) {

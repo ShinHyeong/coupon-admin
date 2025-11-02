@@ -63,7 +63,24 @@ logging:
   file:
     path: /Users/psh/logs
     name: logs/coupon-admin.log
+
 jwt:
   secret-key: "${JWT_SECRET_KEY}"
   access-token-validity: 3600000   # 1시간
   refresh-token-validity: 604800000 # 7일
+
+# AWS General Configuration
+cloud:
+  aws:
+    credentials:
+      access-key: "${AWS_ACCESS_KEY_ID}"
+      secret-key: "${AWS_SECRET_ACCESS_KEY}"
+    region:
+      static: ap-northeast-2 # 서울 리전
+    stack:
+      auto: false
+
+# Custom Application Properties
+aws:
+  s3:
+    bucket: shinhyeong-couponadmin-uploads-dev # 사용할 버킷 이름

@@ -45,6 +45,21 @@ dependencies {
     //Apache POI : Excel 파일(.xls, .xlsx, .xlsm)을 Java로 읽기 위해
     implementation 'org.apache.poi:poi:5.2.5' //HSSF - .xls 구버전
     implementation 'org.apache.poi:poi-ooxml:5.2.5' //XSSF - .xlsx, .xlsm 신버전
+
+    //대용량 엑셀 스트리밍을 위한 라이브러리
+    implementation 'com.monitorjbl:xlsx-streamer:2.2.0'
+
+    //AWS S3
+    // (1) AWS SDK 자체의 버전을 관리하기 위한 BOM
+    implementation platform('software.amazon.awssdk:bom:2.20.40')
+    implementation 'software.amazon.awssdk:s3'
+    //implementation platform('com.amazonaws:aws-java-sdk-bom:1.12.529')// 최신 안정 버전으로 업데이트 권장
+    //implementation 'com.amazonaws:aws-java-sdk-s3'
+    //implementation 'software.amazon.awssdk:s3-presigner'
+
+    // (2) 이제 Spring Cloud AWS 의존성에는 버전을 명시하지 않음.
+    // 위 dependencyManagement 블록에서 버전을 자동으로 관리해줌.
+    //implementation 'io.awspring.cloud:spring-cloud-starter-aws'
 }
 
 tasks.named('test') {

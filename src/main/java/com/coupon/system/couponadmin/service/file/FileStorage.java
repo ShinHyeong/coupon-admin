@@ -1,5 +1,6 @@
 package com.coupon.system.couponadmin.service.file;
 
+import com.coupon.system.couponadmin.dto.couponissurancejob.response.CreatePresignedUrlResponse;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -22,4 +23,15 @@ public interface FileStorage {
 
     /* 저장된 파일을 '처리'할 수 있는 InputStream으로 로드 */
     InputStream loadAsInputStream(String savedFilePath) throws IOException;
+
+    /**
+     * Client-side Upload를 위한 Presigned URL을 생성함
+     * 클라우드 스토리지(S3 등)에서만 지원됨
+     * @param originalFileName 원본 파일명
+     * @return Presigned URL, 저장될 파일 경로(Key)가 담긴 DTO
+     */
+    default CreatePresignedUrlResponse createPresignedUrl(String originalFileName) {
+        //이 저장소 (Ex. 로컬저장소)는 Presigned URL을 지원하지 않는다는 메세지와 함께 예외처리
+        throw new UnsupportedOperationException("Presigned URL generation is not supported by this storage type.");
+    }
 }

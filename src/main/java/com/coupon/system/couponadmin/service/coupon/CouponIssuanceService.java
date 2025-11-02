@@ -64,33 +64,58 @@ public class CouponIssuanceService {
     }
 
     /**
-     * API 1: 파일 업로드로부터 쿠폰 발급 작업 총괄
+     * API 1: 파일 업로드를 위한 Presigned URL 생성
+     * 클라우드 스토리지(S3 등)에서만 지원됨
+     */
+    public CreatePresignedUrlResponse createPresignedUrl(String originalFileName) {
+        // 실제 로직은 FileStorage 구현체에 위임
+        return fileStorage.createPresignedUrl(originalFileName);
+    }
+
+    /**
+     * API 2 : 다운로드에 필요한 파일 리소스와 원본 파일명을 job DB 조회 한 번으로 처리
+     * @param jobId
+     * @return 다운로드 파일 정보 DTO
+     */
+    @Transactional(readOnly = true)
+    public DownloadCouponIssuanceFileResponse downloadCouponIssuanceFile(Long jobId) {
+
+        CouponIssuanceJob savedJob = couponIssuanceJobRepository.findById(jobId)
+                .orElseThrow(() -> new EntityNotFoundException("Job not found with id: " + jobId));
+
+        try {
+            // 2. 파일 리소스 로드
+            Resource resource = fileStorage.loadAsResource(savedJob.getSavedFilePath());
+
+            // 3. DTO에 담아서 반환
+            return new DownloadCouponIssuanceFileResponse(resource, savedJob.getOriginalFileName());
+        } catch (Exception e) {
+            throw new RuntimeException("Could not read file for job id: " + jobId, e);
+        }
+    }
+
+    /**
+     * API 3-1 : 파일 업로드 완료 후 쿠폰 발급 작업 생성
      */
     @Transactional
-    public CreateCouponIssuanceJobResponse createCouponIssuanceJob(MultipartFile file, String adminName) throws IOException {
+    public CreateCouponIssuanceJobResponse createCouponIssuanceJob(
+            CreateCouponIssuanceJobRequest request, String adminName) throws IOException {
 
-        // 1. 파일을 저장하기 전에 먼저 동기적으로 파일을 검증한다.
-        // 이 과정에서 실패하면 InvalidFileException이 발생하고, 컨트롤러에서 처리된다.
-        validateFile(file);
-
-        // 2-1. 현재 로그인한 Admin ID로 DB에서 해당 Admin 찾는다
+        //1. 현재 로그인한 Admin ID로 DB에서 해당 Admin 찾는다
         Admin savedAdmin = adminRepository.findByAdminName(adminName)
                 .orElseThrow(AdminNotFoundException::new);
 
-        // 2-2. 저장소에 업로드한 파일 저장한다
-        String savedFilePath = fileStorage.save(file);
-
-        // 3. 작업(Job) 생성 후 DB에 반영한다
+        //2. DTO로부터 파일 정보를 받아 쿠폰 발급 작업(Job) 생성한 후 DB에 반영한다
         CouponIssuanceJob savedJob = couponIssuanceJobRepository.save(new CouponIssuanceJob(
-                file.getOriginalFilename(),
-                savedFilePath,
+                request.originalFileName(),
+                request.savedFilePath(), // S3 파일 경로(key) 저장
                 savedAdmin.getId()
         ));
 
-        // 4. 비동기로 쿠폰 발급을 처리한다
+        //3. 비동기로 파일 검증과 쿠폰 발급을 처리한다
         issueCoupons(savedJob.getId());
 
-        // 5. 생성한 작업 엔티티 -> DTO 변환한다
+        //4. 생성한 작업 엔티티 -> DTO 변환
         return new CreateCouponIssuanceJobResponse(
                 savedJob.getId(),
                 savedJob.getOriginalFileName(),
@@ -139,9 +164,8 @@ public class CouponIssuanceService {
             job.updateJobStatus(CouponIssuanceJobStatus.PENDING);
             couponIssuanceJobRepository.save(job);
 
-            // 2. 파일을 딱 한 번 열고, 확장자에 따라 파싱 처리
-            String originalFilename = job.getOriginalFileName();
-            try (InputStream inputStream = fileStorage.loadAsInputStream(job.getSavedFilePath())) {
+            // S3/Local 등에서 파일을 스트림으로 읽어옴
+            try (InputStream inputStream = new BufferedInputStream(fileStorage.loadAsInputStream(savedJob.getSavedFilePath()))) {
 
                 if (originalFilename.endsWith(".csv")) {
                     customerIds = parseCsv(inputStream);
@@ -176,26 +200,20 @@ public class CouponIssuanceService {
                 }
             }
 
-            // 5. 남은 쿠폰 저장
-            if (!couponsToSave.isEmpty()) {
-                couponRepository.saveAll(couponsToSave);
-                log.info("Job ID {}: 남아있는 쿠폰 저장", jobId);
-            }
-
-            // 6. 작업 완료 처리
-            job.updateJobStatus(CouponIssuanceJobStatus.COMPLETED);
-            job.updateTotalCount(totalCount);
-            job.updateSuccessCount(totalCount);
-            job.updateCompletedAt(LocalDateTime.now());
-            couponIssuanceJobRepository.save(job);
+            // 4. 작업 완료 처리
+            savedJob.updateJobStatus(CouponIssuanceJobStatus.COMPLETED);
+            savedJob.updateTotalCount(totalCount);
+            savedJob.updateSuccessCount(totalCount);
+            savedJob.updateCompletedAt(LocalDateTime.now());
+            couponIssuanceJobRepository.save(savedJob);
 
             log.info("Job ID {} 완료. 총 {}개 쿠폰 발행완료.", jobId, totalCount);
 
         } catch (Exception e) {
-            // 7. 그 외 예외 처리
+            // 5. 그 외 예외 처리
             log.error("진행 실패 job ID {}: {}", jobId, e.getMessage(), e);
-            job.updateJobStatus(CouponIssuanceJobStatus.FAILED);
-            couponIssuanceJobRepository.save(job);
+            savedJob.updateJobStatus(CouponIssuanceJobStatus.FAILED);
+            couponIssuanceJobRepository.save(savedJob);
         }
     }
 
