@@ -32,25 +32,4 @@
 
 
 # 파일 업로드 API
-```
-       Client                  Controller                   Service/S3
-         |                         |                            |
-         |  파일 올릴 주소 요청         |                            |
-         |-----(1) POST /presigned-url ---->|                            |
-         |      (fileName)            |--(2) createPresignedUrl()-->|
-         |                         |                            |--(3) Presigned URL 생성
-         |                         |<-----(4) Presigned URL ------|
-         |<-----(5) URL 응답 -----------|                            |
-         |                         |                            |
-         |    알려준 주소로 파일 보내기  |                            |
-         |-----(6) PUT {presignedUrl} ------------------------------->| (S3에 파일 저장)
-         |      (file data)           |                            |
-         |                         |                            |
-         |   S3에 업로드 완료 보고     |                            |
-         |-----(7) POST /jobs ------------>|                            |
-         |   (savedFilePath)          |--(8) createCouponIssuanceJob()-->|
-         |                         |                            |--(9) DB에 Job 생성 &
-         |                         |                            |    비동기 처리 시작
-         |                         |<-----(10) Job 생성 결과 -----|
-         |<-----(11) 최종 응답 ----------|                            |
-```
+<img width="3227" height="3674" alt="API1 Sequence Diagram" src="https://github.com/user-attachments/assets/78aa2947-0820-4e63-9773-6ab8c75ac1d8" />
