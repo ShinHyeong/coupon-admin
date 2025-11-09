@@ -32,4 +32,4 @@
 
 
 # 파일 업로드 API
-<img width="3227" height="3674" alt="API1 Sequence Diagram" src="https://github.com/user-attachments/assets/78aa2947-0820-4e63-9773-6ab8c75ac1d8" />
+<img width="3227" height="3734" alt="API1 Sequence Diagram" src="https://github.com/user-attachments/assets/1bd2448d-c302-4990-97ca-30e30963e08d" />
