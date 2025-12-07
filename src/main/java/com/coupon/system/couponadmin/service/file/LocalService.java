@@ -14,10 +14,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @Service
-public class LocalStorage extends AbstractFileStorage {
+public class LocalService extends AbstractFileService {
 
     private final String uploadDir;
-    public LocalStorage(@Value("${file.upload-dir}") String uploadDir) {
+    public LocalService(@Value("${file.upload-dir}") String uploadDir) {
         this.uploadDir = uploadDir;
     }
 

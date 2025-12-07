@@ -20,7 +20,7 @@ import java.util.Map;
 
 @Service
 @Primary
-public class S3Storage extends AbstractFileStorage {
+public class S3Service extends AbstractFileService {
 
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
@@ -32,7 +32,7 @@ public class S3Storage extends AbstractFileStorage {
             "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
 
-    public S3Storage(S3Client s3Client,
+    public S3Service(S3Client s3Client,
                      S3Presigner s3Presigner,
                      @Value("${aws.s3.bucket}") String bucketName) {
         this.s3Client = s3Client;
@@ -40,8 +40,12 @@ public class S3Storage extends AbstractFileStorage {
         this.bucketName = bucketName;
     }
 
+    /**
+     * API 1: 클라우드 스토리지(S3) 파일 업로드를 위한 Presigned URL 생성
+     * @return Presigned URL과 S3에 저장될 객체 키(경로)를 담은 응답 DTO
+     */
     @Override
-    public GetPresignedUrlResponse getPresignedUrl(String fileName, String fileType) {
+    public GetPresignedUrlResponse generatePresignedUrl(String fileName, String fileType) {
         String s3ObjectKey = "uploads/" + generateUniqueFileName(fileName);
 
         String contentType = determineContentType(fileType);
@@ -57,6 +61,7 @@ public class S3Storage extends AbstractFileStorage {
                 .putObjectRequest(objectRequest)
                 .build();
 
+        // S3Presigner를 사용하여 Presigned URL을 "생성"
         String url = s3Presigner.presignPutObject(presignRequest).url().toString();
 
         return new GetPresignedUrlResponse(url, s3ObjectKey);

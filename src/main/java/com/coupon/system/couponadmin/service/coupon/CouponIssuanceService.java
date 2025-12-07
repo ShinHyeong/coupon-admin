@@ -12,7 +12,7 @@ import com.coupon.system.couponadmin.dto.couponissurancejob.response.GetAllCoupo
 import com.coupon.system.couponadmin.dto.file.DownloadCouponIssuanceFileResponse;
 import com.coupon.system.couponadmin.exception.auth.AdminNotFoundException;
 import com.coupon.system.couponadmin.exception.coupon.InvalidFileException;
-import com.coupon.system.couponadmin.service.file.FileStorage;
+import com.coupon.system.couponadmin.service.file.FileService;
 import com.coupon.system.couponadmin.util.GenericBatchProcessor;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +39,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import com.coupon.system.couponadmin.dto.couponissurancejob.request.CreateCouponIssuanceJobRequest;
-import com.coupon.system.couponadmin.dto.couponissurancejob.response.GetPresignedUrlResponse;
+
 import java.io.BufferedInputStream;
 
 @Slf4j
@@ -54,25 +54,16 @@ public class CouponIssuanceService {
     private final CouponRepository couponRepository;
     private final AdminRepository adminRepository; // adminId를 찾기 위해
 
-    private final FileStorage fileStorage;
+    private final FileService fileService;
 
     // 생성자에서 'FileStorage' 인터페이스 타입을 받고 (유연성 확보),
     // @Primary 또는 @Qualifier로 실제 구현체(S3/Local)를 주입받는다.
-    public CouponIssuanceService(CouponBatchService couponBatchService, CouponIssuanceJobRepository couponIssuanceJobRepository, CouponRepository couponRepository, AdminRepository adminRepository, FileStorage fileStorage) {
+    public CouponIssuanceService(CouponBatchService couponBatchService, CouponIssuanceJobRepository couponIssuanceJobRepository, CouponRepository couponRepository, AdminRepository adminRepository, FileService fileService) {
         this.couponBatchService = couponBatchService;
         this.couponIssuanceJobRepository = couponIssuanceJobRepository;
         this.couponRepository = couponRepository;
         this.adminRepository = adminRepository;
-        this.fileStorage = fileStorage;
-    }
-
-    /**
-     * API 1: 파일 업로드를 위해 Presigned URL을 가져온다
-     * 클라우드 스토리지(S3 등)에서만 지원됨
-     */
-    public GetPresignedUrlResponse getPresignedUrl(String fileName, String fileType) {
-        // 실제 로직은 FileStorage 구현체에 위임
-        return fileStorage.getPresignedUrl(fileName, fileType);
+        this.fileService = fileService;
     }
 
     /**
@@ -88,7 +79,7 @@ public class CouponIssuanceService {
 
         try {
             // 2. 파일 리소스 로드
-            Resource resource = fileStorage.loadAsResource(savedJob.getSavedFilePath());
+            Resource resource = fileService.loadAsResource(savedJob.getSavedFilePath());
 
             // 3. DTO에 담아서 반환
             return new DownloadCouponIssuanceFileResponse(resource, savedJob.getOriginalFileName());
@@ -153,7 +144,7 @@ public class CouponIssuanceService {
             GenericBatchProcessor<Coupon> batchProcessor = new GenericBatchProcessor<>(BATCH_SIZE, saveAction);
 
             // S3/Local 등에서 파일을 스트림으로 읽어옴
-            try (InputStream inputStream = new BufferedInputStream(fileStorage.loadAsInputStream(savedJob.getSavedFilePath()))) {
+            try (InputStream inputStream = new BufferedInputStream(fileService.loadAsInputStream(savedJob.getSavedFilePath()))) {
 
                 // 2-1. 스트림으로 파일 검증 (스트림을 닫지 않고 진행)
                 String originalFilename  = savedJob.getOriginalFileName();

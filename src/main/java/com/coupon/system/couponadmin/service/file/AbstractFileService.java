@@ -8,7 +8,7 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.util.UUID;
 
-public abstract class AbstractFileStorage implements FileStorage{
+public abstract class AbstractFileService implements FileService {
 
     @Override
     public final String save(MultipartFile file) throws IOException{

@@ -7,6 +7,8 @@ import com.coupon.system.couponadmin.dto.couponissurancejob.response.GetAllCoupo
 import com.coupon.system.couponadmin.dto.file.DownloadCouponIssuanceFileResponse;
 import com.coupon.system.couponadmin.exception.coupon.InvalidFileException;
 import com.coupon.system.couponadmin.service.coupon.CouponIssuanceService;
+import com.coupon.system.couponadmin.service.file.FileService;
+import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -23,9 +25,11 @@ import java.util.List;
 public class CouponIssuanceController {
 
     private final CouponIssuanceService couponIssuanceService;
+    private final FileService fileService;
 
-    public CouponIssuanceController(CouponIssuanceService couponIssuanceService) {
+    public CouponIssuanceController(CouponIssuanceService couponIssuanceService, FileService fileService) {
         this.couponIssuanceService = couponIssuanceService;
+        this.fileService = fileService;
     }
 
     /**
@@ -33,13 +37,13 @@ public class CouponIssuanceController {
      * @return Presigned URL, S3 파일 경로
      */
     @GetMapping("/presigned-url")
-    public ResponseEntity<GetPresignedUrlResponse> createPresignedUrl(
+    public ResponseEntity<GetPresignedUrlResponse> getPresignedUrl(
             @RequestParam String fileName,
             @RequestParam String fileType
     ) {
         validateFileExtension(fileName);
 
-        GetPresignedUrlResponse response = couponIssuanceService.getPresignedUrl(fileName, fileType);
+        GetPresignedUrlResponse response = fileService.generatePresignedUrl(fileName, fileType);
         return ResponseEntity.ok(response);
     }
 
@@ -51,7 +55,7 @@ public class CouponIssuanceController {
      */
     @PostMapping
     public ResponseEntity<CreateCouponIssuanceJobResponse> createCouponIssuanceJob(
-            @RequestBody CreateCouponIssuanceJobRequest request,
+            @Valid @RequestBody CreateCouponIssuanceJobRequest request,
             Authentication authentication) throws IOException {
 
         String adminName = authentication.getName();
