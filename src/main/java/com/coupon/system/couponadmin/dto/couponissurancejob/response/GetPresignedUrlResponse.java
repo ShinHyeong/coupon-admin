@@ -1,6 +1,6 @@
 package com.coupon.system.couponadmin.dto.couponissurancejob.response;
 
-public record CreatePresignedUrlResponse(
+public record GetPresignedUrlResponse(
         String presignedUrl,
         String savedFilePath // S3 Object Key
 ) {

@@ -21,14 +21,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -41,7 +39,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import com.coupon.system.couponadmin.dto.couponissurancejob.request.CreateCouponIssuanceJobRequest;
-import com.coupon.system.couponadmin.dto.couponissurancejob.response.CreatePresignedUrlResponse;
+import com.coupon.system.couponadmin.dto.couponissurancejob.response.GetPresignedUrlResponse;
 import java.io.BufferedInputStream;
 
 @Slf4j
@@ -69,12 +67,12 @@ public class CouponIssuanceService {
     }
 
     /**
-     * API 1: 파일 업로드를 위한 Presigned URL 생성
+     * API 1: 파일 업로드를 위해 Presigned URL을 가져온다
      * 클라우드 스토리지(S3 등)에서만 지원됨
      */
-    public CreatePresignedUrlResponse createPresignedUrl(String originalFileName) {
+    public GetPresignedUrlResponse getPresignedUrl(String fileName, String fileType) {
         // 실제 로직은 FileStorage 구현체에 위임
-        return fileStorage.createPresignedUrl(originalFileName);
+        return fileStorage.getPresignedUrl(fileName);
     }
 
     /**

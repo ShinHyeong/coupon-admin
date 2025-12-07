@@ -2,9 +2,10 @@ package com.coupon.system.couponadmin.controller.coupon;
 
 import com.coupon.system.couponadmin.dto.couponissurancejob.request.CreateCouponIssuanceJobRequest;
 import com.coupon.system.couponadmin.dto.couponissurancejob.response.CreateCouponIssuanceJobResponse;
-import com.coupon.system.couponadmin.dto.couponissurancejob.response.CreatePresignedUrlResponse;
+import com.coupon.system.couponadmin.dto.couponissurancejob.response.GetPresignedUrlResponse;
 import com.coupon.system.couponadmin.dto.couponissurancejob.response.GetAllCouponIssuanceJobsResponse;
 import com.coupon.system.couponadmin.dto.file.DownloadCouponIssuanceFileResponse;
+import com.coupon.system.couponadmin.exception.coupon.InvalidFileException;
 import com.coupon.system.couponadmin.service.coupon.CouponIssuanceService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -12,12 +13,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/coupons/jobs")
@@ -30,14 +29,17 @@ public class CouponIssuanceController {
     }
 
     /**
-     * API 1-1: S3 업로드를 위한 Presigned URL 생성 요청
-     * @param payload {"fileName": "customers.csv"} 형태의 JSON
+     * API 1-1: S3 업로드를 위한 Presigned URL 가져오는 요청
      * @return Presigned URL, S3 파일 경로
      */
-    @PostMapping("/presigned-url")
-    public ResponseEntity<CreatePresignedUrlResponse> createPresignedUrl(@RequestBody Map<String, String> payload) {
-        String fileName = payload.get("fileName");
-        CreatePresignedUrlResponse response = couponIssuanceService.createPresignedUrl(fileName);
+    @GetMapping("/presigned-url")
+    public ResponseEntity<GetPresignedUrlResponse> createPresignedUrl(
+            @RequestParam String fileName,
+            @RequestParam String fileType
+    ) {
+        validateFileExtension(fileName);
+
+        GetPresignedUrlResponse response = couponIssuanceService.getPresignedUrl(fileName, fileType);
         return ResponseEntity.ok(response);
     }
 
@@ -89,5 +91,19 @@ public class CouponIssuanceController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + originalFileName + "\"")
                 .body(resource);
+    }
+
+    private void validateFileExtension(String fileName) {
+        // 1. 확장자 추출
+        String ext = org.springframework.util.StringUtils.getFilenameExtension(fileName);
+
+        // 2. 검증
+        if (ext == null || !isValidExtension(ext)) {
+            throw new InvalidFileException("지원하지 않는 파일 형식입니다. (csv, xls, xlsx만 가능)");
+        }
+    }
+
+    private boolean isValidExtension(String ext) {
+        return List.of("csv", "xls", "xlsx").contains(ext.toLowerCase());
     }
 }

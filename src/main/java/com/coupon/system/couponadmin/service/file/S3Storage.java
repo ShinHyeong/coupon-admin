@@ -1,6 +1,6 @@
 package com.coupon.system.couponadmin.service.file;
 
-import com.coupon.system.couponadmin.dto.couponissurancejob.response.CreatePresignedUrlResponse;
+import com.coupon.system.couponadmin.dto.couponissurancejob.response.GetPresignedUrlResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.Resource;
@@ -34,7 +34,7 @@ public class S3Storage extends AbstractFileStorage {
     }
 
     @Override
-    public CreatePresignedUrlResponse createPresignedUrl(String originalFileName) {
+    public GetPresignedUrlResponse getPresignedUrl(String originalFileName) {
         String s3ObjectKey = "uploads/" + generateUniqueFileName(originalFileName);
 
         PutObjectRequest objectRequest = PutObjectRequest.builder()
@@ -49,7 +49,7 @@ public class S3Storage extends AbstractFileStorage {
 
         String url = s3Presigner.presignPutObject(presignRequest).url().toString();
 
-        return new CreatePresignedUrlResponse(url, s3ObjectKey);
+        return new GetPresignedUrlResponse(url, s3ObjectKey);
     }
 
     @Override
