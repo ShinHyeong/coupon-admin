@@ -72,7 +72,7 @@ public class CouponIssuanceService {
      */
     public GetPresignedUrlResponse getPresignedUrl(String fileName, String fileType) {
         // 실제 로직은 FileStorage 구현체에 위임
-        return fileStorage.getPresignedUrl(fileName);
+        return fileStorage.getPresignedUrl(fileName, fileType);
     }
 
     /**

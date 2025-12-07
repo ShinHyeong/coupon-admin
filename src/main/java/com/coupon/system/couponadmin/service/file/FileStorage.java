@@ -25,12 +25,11 @@ public interface FileStorage {
     InputStream loadAsInputStream(String savedFilePath) throws IOException;
 
     /**
-     * Client-side Upload를 위한 Presigned URL을 생성함
+     * Client-side Upload를 위한 Presigned URL을 받아옴
      * 클라우드 스토리지(S3 등)에서만 지원됨
-     * @param fileName 원본 파일명
      * @return Presigned URL, 저장될 파일 경로(Key)가 담긴 DTO
      */
-    default GetPresignedUrlResponse getPresignedUrl(String fileName) {
+    default GetPresignedUrlResponse getPresignedUrl(String fileName, String fileType) {
         //이 저장소 (Ex. 로컬저장소)는 Presigned URL을 지원하지 않는다는 메세지와 함께 예외처리
         throw new UnsupportedOperationException("Presigned URL generation is not supported by this storage type.");
     }

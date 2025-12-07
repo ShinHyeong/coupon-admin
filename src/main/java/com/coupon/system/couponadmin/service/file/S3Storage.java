@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.time.Duration;
+import java.util.Map;
 
 @Service
 @Primary
@@ -24,6 +25,12 @@ public class S3Storage extends AbstractFileStorage {
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final String bucketName;
+
+    private static final Map<String, String> MIME_TYPES = Map.of(
+            "csv", "text/csv",
+            "xls", "application/vnd.ms-excel",
+            "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
 
     public S3Storage(S3Client s3Client,
                      S3Presigner s3Presigner,
@@ -34,12 +41,15 @@ public class S3Storage extends AbstractFileStorage {
     }
 
     @Override
-    public GetPresignedUrlResponse getPresignedUrl(String originalFileName) {
-        String s3ObjectKey = "uploads/" + generateUniqueFileName(originalFileName);
+    public GetPresignedUrlResponse getPresignedUrl(String fileName, String fileType) {
+        String s3ObjectKey = "uploads/" + generateUniqueFileName(fileName);
+
+        String contentType = determineContentType(fileType);
 
         PutObjectRequest objectRequest = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(s3ObjectKey)
+                .contentType(contentType)
                 .build();
 
         PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
@@ -50,6 +60,13 @@ public class S3Storage extends AbstractFileStorage {
         String url = s3Presigner.presignPutObject(presignRequest).url().toString();
 
         return new GetPresignedUrlResponse(url, s3ObjectKey);
+    }
+
+    // 헬퍼 메서드: 확장자/타입 문자열을 MIME 타입으로 변환
+    private String determineContentType(String fileType) {
+        if (fileType == null) return "application/octet-stream";
+        String normalizedType = fileType.toLowerCase().replace(".", ""); // .csv -> csv
+        return MIME_TYPES.getOrDefault(normalizedType, "application/octet-stream");
     }
 
     @Override
