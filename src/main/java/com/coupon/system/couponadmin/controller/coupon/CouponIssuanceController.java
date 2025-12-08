@@ -1,5 +1,6 @@
 package com.coupon.system.couponadmin.controller.coupon;
 
+import com.coupon.system.couponadmin.domain.couponissurancejob.CouponIssuanceJob;
 import com.coupon.system.couponadmin.dto.couponissurancejob.request.CreateCouponIssuanceJobRequest;
 import com.coupon.system.couponadmin.dto.couponissurancejob.response.CreateCouponIssuanceJobResponse;
 import com.coupon.system.couponadmin.dto.couponissurancejob.response.GetPresignedUrlResponse;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/coupons/jobs")
@@ -44,7 +46,13 @@ public class CouponIssuanceController {
 
         String adminName = authentication.getName();
 
-        CreateCouponIssuanceJobResponse response = couponIssuanceService.createCouponIssuanceJob(request, adminName);
+        CouponIssuanceJob savedJob = couponIssuanceService.createCouponIssuanceJob(
+                request.originalFileName(),
+                request.savedFilePath(),
+                adminName
+        );
+
+        CreateCouponIssuanceJobResponse response = CreateCouponIssuanceJobResponse.from(savedJob);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
@@ -56,7 +64,11 @@ public class CouponIssuanceController {
     @GetMapping
     public ResponseEntity<List<GetAllCouponIssuanceJobsResponse>> getAllCouponIssuanceJobs() {
 
-        List<GetAllCouponIssuanceJobsResponse> response = couponIssuanceService.getAllCouponIssuanceJobs();
+        List<CouponIssuanceJob> jobs = couponIssuanceService.getAllCouponIssuanceJobs();
+
+        List<GetAllCouponIssuanceJobsResponse> response = jobs.stream()
+                .map(GetAllCouponIssuanceJobsResponse::from)
+                .collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
     }
@@ -70,10 +82,9 @@ public class CouponIssuanceController {
     public ResponseEntity<Resource> downloadUploadedFile(@PathVariable Long jobId)
             throws MalformedURLException {
 
-        DownloadCouponIssuanceFileResponse uploadedFile = couponIssuanceService.downloadCouponIssuanceFile(jobId);
+        CouponIssuanceService.FileDownloadInfo uploadedFile = couponIssuanceService.downloadCouponIssuanceFile(jobId);
 
         Resource resource = uploadedFile.resource();
-
         String originalFileName = uploadedFile.originalFileName(); // 원본 파일명으로 다운로드되도록 헤더 설정
 
         return ResponseEntity.ok()

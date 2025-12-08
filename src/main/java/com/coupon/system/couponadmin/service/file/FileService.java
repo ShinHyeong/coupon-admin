@@ -29,7 +29,7 @@ public interface FileService {
      * 클라우드 스토리지(S3 등)에서만 지원됨
      * @return Presigned URL, 저장될 파일 경로(Key)가 담긴 DTO
      */
-    default GetPresignedUrlResponse generatePresignedUrl(String fileName, String fileType) {
+    default PresignedUrlInfo generatePresignedUrl(String fileName, String fileType) {
         //이 저장소 (Ex. 로컬저장소)는 Presigned URL을 지원하지 않는다는 메세지와 함께 예외처리
         throw new UnsupportedOperationException("Presigned URL generation is not supported by this storage type.");
     }

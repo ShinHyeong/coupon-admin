@@ -33,7 +33,7 @@ public class JwtTokenProvider {
         this.refreshTokenValidityInMilliseconds = refreshTokenValidity;
     }
 
-    public LoginResponse generateTokens(String adminName, String role) {
+    public GeneratedToken generateTokens(String adminName, String role) {
         long now = (new Date()).getTime();
         Date accessTokenExpiresIn = new Date(now + accessTokenValidityInMilliseconds);
         Date refreshTokenExpiresIn = new Date(now + refreshTokenValidityInMilliseconds);
@@ -51,7 +51,7 @@ public class JwtTokenProvider {
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
-        return LoginResponse.of(accessToken, refreshToken, accessTokenValidityInMilliseconds);
+        return new GeneratedToken(accessToken, refreshToken, accessTokenValidityInMilliseconds);
     }
 
     public Authentication getAuthentication(String token) {

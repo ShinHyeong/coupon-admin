@@ -2,6 +2,7 @@ package com.coupon.system.couponadmin.controller.auth;
 
 import com.coupon.system.couponadmin.dto.auth.request.LoginRequest;
 import com.coupon.system.couponadmin.dto.auth.response.LoginResponse;
+import com.coupon.system.couponadmin.security.GeneratedToken;
 import com.coupon.system.couponadmin.service.auth.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -22,8 +23,9 @@ public class AuthController {
     @PostMapping("login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request){
 
-        LoginResponse response = authService.login(request);
 
-        return ResponseEntity.ok(response);
+        GeneratedToken token = authService.login(request);
+
+        return ResponseEntity.ok(LoginResponse.from(token));
     }
 }

@@ -5,6 +5,7 @@ import com.coupon.system.couponadmin.domain.auth.AdminRepository;
 import com.coupon.system.couponadmin.dto.auth.request.LoginRequest;
 import com.coupon.system.couponadmin.dto.auth.response.LoginResponse;
 import com.coupon.system.couponadmin.exception.auth.AdminNotFoundException;
+import com.coupon.system.couponadmin.security.GeneratedToken;
 import com.coupon.system.couponadmin.security.JwtTokenProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,8 +23,14 @@ public class AuthService {
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
+    public record TokenInfo(
+            String accessToken,
+            String refreshToken,
+            Long accessTokenExpiresIn
+    ) {}
+
     @Transactional(readOnly = true)
-    public LoginResponse login(LoginRequest request){
+    public GeneratedToken login(LoginRequest request){
         Admin admin = adminRepository.findByAdminName(request.adminName())
                 .orElseThrow(AdminNotFoundException::new);
 

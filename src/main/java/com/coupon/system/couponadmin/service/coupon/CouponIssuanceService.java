@@ -7,9 +7,6 @@ import com.coupon.system.couponadmin.domain.coupon.CouponRepository;
 import com.coupon.system.couponadmin.domain.couponissurancejob.CouponIssuanceJob;
 import com.coupon.system.couponadmin.domain.couponissurancejob.CouponIssuanceJobRepository;
 import com.coupon.system.couponadmin.domain.couponissurancejob.CouponIssuanceJobStatus;
-import com.coupon.system.couponadmin.dto.couponissurancejob.response.CreateCouponIssuanceJobResponse;
-import com.coupon.system.couponadmin.dto.couponissurancejob.response.GetAllCouponIssuanceJobsResponse;
-import com.coupon.system.couponadmin.dto.file.DownloadCouponIssuanceFileResponse;
 import com.coupon.system.couponadmin.exception.auth.AdminNotFoundException;
 import com.coupon.system.couponadmin.exception.coupon.InvalidFileException;
 import com.coupon.system.couponadmin.service.file.FileService;
@@ -38,7 +35,6 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import com.coupon.system.couponadmin.dto.couponissurancejob.request.CreateCouponIssuanceJobRequest;
 
 import java.io.BufferedInputStream;
 
@@ -66,23 +62,21 @@ public class CouponIssuanceService {
         this.fileService = fileService;
     }
 
+    public record FileDownloadInfo(Resource resource, String originalFileName) {}
     /**
      * API 2 : 다운로드에 필요한 파일 리소스와 원본 파일명을 job DB 조회 한 번으로 처리
      * @param jobId
      * @return 다운로드 파일 정보 DTO
      */
     @Transactional(readOnly = true)
-    public DownloadCouponIssuanceFileResponse downloadCouponIssuanceFile(Long jobId) {
+    public FileDownloadInfo downloadCouponIssuanceFile(Long jobId) {
 
         CouponIssuanceJob savedJob = couponIssuanceJobRepository.findById(jobId)
                 .orElseThrow(() -> new EntityNotFoundException("Job not found with id: " + jobId));
 
         try {
-            // 2. 파일 리소스 로드
             Resource resource = fileService.loadAsResource(savedJob.getSavedFilePath());
-
-            // 3. DTO에 담아서 반환
-            return new DownloadCouponIssuanceFileResponse(resource, savedJob.getOriginalFileName());
+            return new FileDownloadInfo(resource, savedJob.getOriginalFileName());
         } catch (Exception e) {
             throw new RuntimeException("Could not read file for job id: " + jobId, e);
         }
@@ -92,31 +86,25 @@ public class CouponIssuanceService {
      * API 3-1 : 파일 업로드 완료 후 쿠폰 발급 작업 생성
      */
     @Transactional
-    public CreateCouponIssuanceJobResponse createCouponIssuanceJob(
-            CreateCouponIssuanceJobRequest request, String adminName) throws IOException {
+    public CouponIssuanceJob createCouponIssuanceJob(
+            String originalFileName, String savedFilePath, String adminName) throws IOException {
 
         //1. 현재 로그인한 Admin ID로 DB에서 해당 Admin 찾는다
         Admin savedAdmin = adminRepository.findByAdminName(adminName)
                 .orElseThrow(AdminNotFoundException::new);
 
-        //2. DTO로부터 파일 정보를 받아 쿠폰 발급 작업(Job) 생성한 후 DB에 반영한다
+        //2. 쿠폰 발급 작업(Job) 생성한 후 DB에 반영한다
         CouponIssuanceJob savedJob = couponIssuanceJobRepository.save(new CouponIssuanceJob(
-                request.originalFileName(),
-                request.savedFilePath(), // S3 파일 경로(key) 저장
+                originalFileName,
+                savedFilePath, // S3 파일 경로(key) 저장
                 savedAdmin.getId()
         ));
 
         //3. 비동기로 파일 검증과 쿠폰 발급을 처리한다
         issueCoupons(savedJob.getId());
 
-        //4. 생성한 작업 엔티티 -> DTO 변환
-        return new CreateCouponIssuanceJobResponse(
-                savedJob.getId(),
-                savedJob.getOriginalFileName(),
-                savedJob.getJobStatus().name(),
-                savedJob.getAdminId(),
-                savedJob.getCreatedAt()
-        );
+        //4. 생성한 작업 엔티티 변환
+        return savedJob;
     }
 
     /**
@@ -326,23 +314,9 @@ public class CouponIssuanceService {
      * @Returns 모든 작업 목록
      */
     @Transactional(readOnly = true)
-    public List<GetAllCouponIssuanceJobsResponse> getAllCouponIssuanceJobs(){
-
-        //
-        List<CouponIssuanceJob> savedJobs = couponIssuanceJobRepository.findAll(
+    public List<CouponIssuanceJob> getAllCouponIssuanceJobs(){
+        return couponIssuanceJobRepository.findAll(
                 Sort.by(Sort.Direction.DESC, "id")
         );
-
-        return savedJobs.stream()
-                .map(job -> new GetAllCouponIssuanceJobsResponse(
-                        job.getId(),
-                        job.getOriginalFileName(),
-                        job.getJobStatus().name(),
-                        job.getTotalCount(),
-                        job.getSuccessCount(),
-                        job.getFailCount(),
-                        job.getCreatedAt()
-                ))
-                .collect(Collectors.toList());
     }
 }

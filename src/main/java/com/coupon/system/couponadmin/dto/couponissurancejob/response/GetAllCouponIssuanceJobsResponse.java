@@ -1,5 +1,7 @@
 package com.coupon.system.couponadmin.dto.couponissurancejob.response;
 
+import com.coupon.system.couponadmin.domain.couponissurancejob.CouponIssuanceJob;
+
 import java.time.LocalDateTime;
 
 /**
@@ -14,4 +16,15 @@ public record GetAllCouponIssuanceJobsResponse(
         int failCount,
         LocalDateTime createdAt
 ) {
+    public static GetAllCouponIssuanceJobsResponse from(CouponIssuanceJob entity) {
+        return new GetAllCouponIssuanceJobsResponse(
+                entity.getId(),
+                entity.getOriginalFileName(),
+                entity.getJobStatus().name(), // Enum -> String 변환
+                entity.getTotalCount(),
+                entity.getSuccessCount(),
+                entity.getFailCount(),
+                entity.getCreatedAt()
+        );
+    }
 }

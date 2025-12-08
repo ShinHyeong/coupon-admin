@@ -40,12 +40,14 @@ public class S3Service extends AbstractFileService {
         this.bucketName = bucketName;
     }
 
+
+
     /**
      * API 1: 클라우드 스토리지(S3) 파일 업로드를 위한 Presigned URL 생성
      * @return Presigned URL과 S3에 저장될 객체 키(경로)를 담은 응답 DTO
      */
     @Override
-    public GetPresignedUrlResponse generatePresignedUrl(String fileName, String fileType) {
+    public PresignedUrlInfo generatePresignedUrl(String fileName, String fileType) {
         String s3ObjectKey = "uploads/" + generateUniqueFileName(fileName);
 
         String contentType = determineContentType(fileType);
@@ -64,7 +66,7 @@ public class S3Service extends AbstractFileService {
         // S3Presigner를 사용하여 Presigned URL을 "생성"
         String url = s3Presigner.presignPutObject(presignRequest).url().toString();
 
-        return new GetPresignedUrlResponse(url, s3ObjectKey);
+        return new PresignedUrlInfo(url, s3ObjectKey);
     }
 
     // 헬퍼 메서드: 확장자/타입 문자열을 MIME 타입으로 변환

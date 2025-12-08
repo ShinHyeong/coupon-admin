@@ -1,5 +1,7 @@
 package com.coupon.system.couponadmin.dto.couponissurancejob.response;
 
+import com.coupon.system.couponadmin.domain.couponissurancejob.CouponIssuanceJob;
+
 import java.time.LocalDateTime;
 
 /**
@@ -12,4 +14,13 @@ public record CreateCouponIssuanceJobResponse(
         Long adminId, //해당 파일을 올린 관리자id (FK)
         LocalDateTime createdAt
 ) {
+    public static CreateCouponIssuanceJobResponse from(CouponIssuanceJob entity) {
+        return new CreateCouponIssuanceJobResponse(
+                entity.getId(),
+                entity.getOriginalFileName(),
+                entity.getJobStatus().name(), // Enum -> String 변환
+                entity.getAdminId(),
+                entity.getCreatedAt()
+        );
+    }
 }

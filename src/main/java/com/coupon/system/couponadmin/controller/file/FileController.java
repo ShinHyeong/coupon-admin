@@ -4,15 +4,14 @@ import com.coupon.system.couponadmin.dto.couponissurancejob.response.GetPresigne
 import com.coupon.system.couponadmin.dto.file.DownloadCouponIssuanceFileResponse;
 import com.coupon.system.couponadmin.exception.coupon.InvalidFileException;
 import com.coupon.system.couponadmin.service.file.FileService;
+import com.coupon.system.couponadmin.service.file.PresignedUrlInfo;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.net.MalformedURLException;
 import java.util.List;
 
 public class FileController {
@@ -33,8 +32,8 @@ public class FileController {
     ) {
         validateFileExtension(fileName);
 
-        GetPresignedUrlResponse response = fileService.generatePresignedUrl(fileName, fileType);
-        return ResponseEntity.ok(response);
+        PresignedUrlInfo info = fileService.generatePresignedUrl(fileName, fileType);
+        return ResponseEntity.ok(GetPresignedUrlResponse.from(info));
     }
 
     private void validateFileExtension(String fileName) {
