@@ -24,7 +24,7 @@
 # 파일 업로드 API
 <div align="center">
     <br>
-    <img width="80%" alt="API1 Sequence Diagram" src="https://github.com/user-attachments/assets/9c10eae7-e3c7-46b3-b55d-2216e5213014" />
+    <img width="80%" alt="API1 Sequence Diagram" src="https://github.com/user-attachments/assets/ada0be65-f0b7-40fe-b7ff-e185e3887a43" />
     <br><br>
 </div>
 
