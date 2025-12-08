@@ -25,30 +25,14 @@ import java.util.List;
 public class CouponIssuanceController {
 
     private final CouponIssuanceService couponIssuanceService;
-    private final FileService fileService;
 
-    public CouponIssuanceController(CouponIssuanceService couponIssuanceService, FileService fileService) {
+    public CouponIssuanceController(CouponIssuanceService couponIssuanceService) {
         this.couponIssuanceService = couponIssuanceService;
-        this.fileService = fileService;
     }
 
-    /**
-     * API 1-1: S3 업로드를 위한 Presigned URL 가져오는 요청
-     * @return Presigned URL, S3 파일 경로
-     */
-    @GetMapping("/presigned-url")
-    public ResponseEntity<GetPresignedUrlResponse> getPresignedUrl(
-            @RequestParam String fileName,
-            @RequestParam String fileType
-    ) {
-        validateFileExtension(fileName);
-
-        GetPresignedUrlResponse response = fileService.generatePresignedUrl(fileName, fileType);
-        return ResponseEntity.ok(response);
-    }
 
     /**
-     * API 1-2: S3 업로드 완료 보고 및 쿠폰 발행 작업 생성 요청
+     * API 1: S3 업로드 완료 보고 및 쿠폰 발행 작업 생성 요청
      * @param request (S3 파일 경로와 원본 파일명이 담긴 DTO)
      * @param authentication (현재 로그인한 사용자 정보)
      * @return 생성된 Job 객체 (JSON)
@@ -97,17 +81,4 @@ public class CouponIssuanceController {
                 .body(resource);
     }
 
-    private void validateFileExtension(String fileName) {
-        // 1. 확장자 추출
-        String ext = org.springframework.util.StringUtils.getFilenameExtension(fileName);
-
-        // 2. 검증
-        if (ext == null || !isValidExtension(ext)) {
-            throw new InvalidFileException("지원하지 않는 파일 형식입니다. (csv, xls, xlsx만 가능)");
-        }
-    }
-
-    private boolean isValidExtension(String ext) {
-        return List.of("csv", "xls", "xlsx").contains(ext.toLowerCase());
-    }
 }
