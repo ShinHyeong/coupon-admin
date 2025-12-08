@@ -62,10 +62,10 @@
  │  │  ├─ 📜 CouponBatchService.java             # 대량 쿠폰 발급 배치 처리 서비스
  │  │  └─ 📜 CouponIssuanceService.java          # 쿠폰 발급 관련 서비스
  │  └─ 📂 file                               # 파일 스토리지 전략 (Strategy Pattern)
- │     ├─ 📜 AbstractFileStorage.java            # 파일 저장소 공통 로직 추상 클래스
- │     ├─ 📜 FileStorage.java                    # 파일 저장소 인터페이스
- │     ├─ 📜 LocalStorage.java                   # 로컬 디스크 저장 구현체
- │     └─ 📜 S3Storage.java                      # AWS S3 저장 구현체
+ │     ├─ 📜 AbstractFileService.java            # 파일 저장소 공통 로직 추상 클래스
+ │     ├─ 📜 FileService.java                    # 파일 저장소 인터페이스
+ │     ├─ 📜 LocalService.java                   # 로컬 디스크 저장 구현체
+ │     └─ 📜 S3Service.java                      # AWS S3 저장 구현체
  │
  └─ 📂 util                              # 6. 공통 유틸리티
  │  └─ 📜 GenericBatchProcessor.java         # 제네릭 기반의 범용 배치 처리 프로세서
