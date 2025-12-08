@@ -35,7 +35,8 @@
  ├─ 📜 CouponAdminApplication.java       # 1. 애플리케이션 메인 실행 클래스
  ├─ 📂 controller                        # 2. 요청 처리
  │  ├─ 📂 auth                               # 관리자 로그인 및 인증 관련 API
- │  └─ 📂 coupon                             # 쿠폰 발급 요청 및 조회 API
+ │  ├─ 📂 coupon                             # 쿠폰 발급 요청 및 조회 API
+ │  └─ 📂 file                               # 파일 업로드 요청 API
  │
  ├─ 📂 domain                            # 3. JPA 엔티티 및 리포지토리
  │  ├─ 📂 auth
